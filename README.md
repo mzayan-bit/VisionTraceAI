@@ -68,6 +68,7 @@ VisionTraceAI/
 
 - **Python** 3.11+
 - **uv** package manager ([install guide](https://docs.astral.sh/uv/getting-started/installation/))
+- **Docker** (for Qdrant)
 - **Git**
 
 ### Installation
@@ -114,6 +115,77 @@ docker compose -f docker/docker-compose.yml up --build
 
 ---
 
+## 🗄️ Qdrant Vector Database
+
+VisionTraceAI uses [Qdrant](https://qdrant.tech/) as the semantic memory backend for storing and searching embedding vectors.
+
+### Setup
+
+```bash
+# 1. Start the Qdrant container
+docker compose -f docker/docker-compose.qdrant.yml up -d
+
+# 2. Initialize the default collection
+uv run python scripts/init_qdrant.py
+
+# 3. Verify with health check
+uv run python scripts/check_qdrant.py
+```
+
+### Expected Output — Initialization
+
+```
+  🔍 VisionTraceAI — Qdrant Initialization
+  ════════════════════════════════════════
+  [1/4] Connecting to Qdrant...
+        ✅  Connected successfully
+  [2/4] Creating collection...
+        ✅  Collection 'visiontrace_embeddings' created
+  [3/4] Verifying collection...
+        ✅  Collection 'visiontrace_embeddings' verified
+  [4/4] Collection diagnostics:
+        Name         : visiontrace_embeddings
+        Status       : green
+        Vector Size  : 1152
+        Vectors Count: 0
+```
+
+### Expected Output — Health Check
+
+```
+  🔍 VisionTraceAI — Qdrant Health Check
+  ════════════════════════════════════════
+  [1/3] Testing connection...
+        ✅  Connected to localhost:6333
+  [2/3] Running health check...
+        Status           : healthy
+        Collections Count: 1
+  [3/3] Listing collections:
+        1. visiontrace_embeddings
+           Status : green
+           Vectors: 0
+           Dim    : 1152
+```
+
+### Configuration
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `QDRANT_HOST` | `localhost` | Qdrant server hostname |
+| `QDRANT_PORT` | `6333` | Qdrant HTTP API port |
+| `QDRANT_COLLECTION_NAME` | `visiontrace_embeddings` | Default collection name |
+
+### Collection Details
+
+| Property | Value |
+|----------|-------|
+| Collection Name | `visiontrace_embeddings` |
+| Vector Size | 1152 (SigLIP embeddings) |
+| Distance Metric | Cosine |
+| Persistent Storage | Docker volume `qdrant_data` |
+
+---
+
 ## 🧪 Testing
 
 ```bash
@@ -145,10 +217,12 @@ mkdocs serve
 | Stage | Description                     | Status         |
 |-------|---------------------------------|----------------|
 | 1     | Project Bootstrap               | ✅ Complete     |
-| 2     | Core Infrastructure             | 🔲 Planned     |
-| 3     | Detection & Tracking Pipelines  | 🔲 Planned     |
-| 4     | API & Dashboard                 | 🔲 Planned     |
-| 5     | Deployment & Monitoring         | 🔲 Planned     |
+| 2     | Configuration System            | ✅ Complete     |
+| 3     | Enterprise Logging              | ✅ Complete     |
+| 4     | Qdrant Infrastructure           | ✅ Complete     |
+| 5     | Detection & Tracking Pipelines  | 🔲 Planned     |
+| 6     | API & Dashboard                 | 🔲 Planned     |
+| 7     | Deployment & Monitoring         | 🔲 Planned     |
 
 ---
 

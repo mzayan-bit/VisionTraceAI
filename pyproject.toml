@@ -28,6 +28,7 @@ classifiers = [
 
 dependencies = [
     "pydantic-settings>=2.14.1",
+    "qdrant-client>=1.18.0",
 ]
 
 [project.optional-dependencies]

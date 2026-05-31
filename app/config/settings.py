@@ -53,6 +53,10 @@ class Settings(BaseSettings):
         le=65535,
         description="Port of the Qdrant gRPC/HTTP API.",
     )
+    qdrant_collection_name: str = Field(
+        default="visiontrace_embeddings",
+        description="Default Qdrant collection name for storing embeddings.",
+    )
 
     # ── Device ───────────────────────────────────────────────────────────
     device: Literal["cpu", "cuda", "mps"] = Field(
@@ -107,6 +111,7 @@ class Settings(BaseSettings):
         print(f"│  SigLIP Model  : {self.siglip_model}", file=file)  # noqa: T201
         print(f"│  Qdrant Host   : {self.qdrant_host}", file=file)  # noqa: T201
         print(f"│  Qdrant Port   : {self.qdrant_port}", file=file)  # noqa: T201
+        print(f"│  Qdrant Coll.  : {self.qdrant_collection_name}", file=file)  # noqa: T201
         print(f"│  Qdrant URL    : {self.qdrant_url}", file=file)  # noqa: T201
         print(f"└{border}┘\n", file=file)  # noqa: T201
 
