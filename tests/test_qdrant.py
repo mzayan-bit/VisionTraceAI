@@ -22,7 +22,7 @@ from app.services.database import (
 # Constants
 # ---------------------------------------------------------------------------
 TEST_COLLECTION = f"test_visiontrace_{uuid.uuid4().hex[:8]}"
-TEST_VECTOR_SIZE = 1152
+TEST_VECTOR_SIZE = 768
 
 
 # ---------------------------------------------------------------------------

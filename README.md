@@ -146,7 +146,7 @@ uv run python scripts/check_qdrant.py
   [4/4] Collection diagnostics:
         Name         : visiontrace_embeddings
         Status       : green
-        Vector Size  : 1152
+        Vector Size  : 768
         Vectors Count: 0
 ```
 
@@ -164,7 +164,7 @@ uv run python scripts/check_qdrant.py
         1. visiontrace_embeddings
            Status : green
            Vectors: 0
-           Dim    : 1152
+           Dim    : 768
 ```
 
 ### Configuration
@@ -180,7 +180,7 @@ uv run python scripts/check_qdrant.py
 | Property | Value |
 |----------|-------|
 | Collection Name | `visiontrace_embeddings` |
-| Vector Size | 1152 (SigLIP embeddings) |
+| Vector Size | 768 (SigLIP embeddings) |
 | Distance Metric | Cosine |
 | Persistent Storage | Docker volume `qdrant_data` |
 
@@ -206,6 +206,44 @@ data/crops/
         ├── crop_metadata.json
         ├── track_1_frame_00001.jpg
         └── track_1_frame_00002.jpg
+```
+
+---
+
+## 🧠 SigLIP Embedding Engine
+
+The semantic engine uses **Google's SigLIP** (`google/siglip-base-patch16-224`) to generate 768-dimensional semantic embeddings for both images (crops) and text queries.
+
+### Benchmarking
+
+You can benchmark latency and model load times with the provided script:
+
+```bash
+uv run python scripts/test_siglip.py
+```
+
+---
+
+## 🔎 Semantic Search Pipeline
+
+The system connects the Tracker, Cropper, SigLIP, and Qdrant into an automated Semantic Memory Pipeline.
+
+### Indexing a Video
+
+To automatically track, crop, embed, and store all individuals in a video to the Qdrant database:
+
+```bash
+uv run python scripts/index_video.py data/videos/sample.mp4 --camera-id cam_1
+```
+
+### Searching (Example)
+
+You can retrieve tracks matching semantic descriptions:
+
+```python
+results = pipeline.search_by_text("person wearing a blue hoodie", limit=5)
+for res in results:
+    print(f"Match: Track {res.track_id} from Camera {res.camera_id} (Score: {res.score:.3f})")
 ```
 
 ---
@@ -246,8 +284,8 @@ mkdocs serve
 | 4     | Qdrant Infrastructure           | ✅ Complete     |
 | 5     | Detection & Tracking Pipelines  | ✅ Complete     |
 | 6     | Crop Extraction Pipeline        | ✅ Complete     |
-| 7     | API & Dashboard                 | 🔲 Planned     |
-| 8     | Deployment & Monitoring         | 🔲 Planned     |
+| 7     | SigLIP Embedding Engine         | ✅ Complete     |
+| 8     | Semantic Memory Pipeline        | ✅ Complete     |
 
 ---
 

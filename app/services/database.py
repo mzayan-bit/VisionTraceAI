@@ -10,7 +10,7 @@ Usage::
 
     qdrant = QdrantService()
     qdrant.connect()
-    qdrant.create_collection("visiontrace_embeddings", vector_size=1152)
+    qdrant.create_collection("visiontrace_embeddings", vector_size=768)
     results = qdrant.search("visiontrace_embeddings", query_vector=[...], top_k=5)
 """
 
@@ -59,7 +59,7 @@ class QdrantService:
     """
 
     # Default vector configuration for SigLIP embeddings
-    DEFAULT_VECTOR_SIZE: int = 1152
+    DEFAULT_VECTOR_SIZE: int = 768
     DEFAULT_DISTANCE: qmodels.Distance = qmodels.Distance.COSINE
 
     def __init__(
@@ -177,7 +177,7 @@ class QdrantService:
 
         Args:
             name: Collection name. Defaults to ``self.collection_name``.
-            vector_size: Dimensionality of vectors (default 1152 for SigLIP).
+            vector_size: Dimensionality of vectors (default 768 for SigLIP).
             distance: Distance metric (default COSINE).
             skip_if_exists: If ``True``, silently skip when the collection
                 already exists.
