@@ -1,0 +1,95 @@
+# ========================
+# VisionTraceAI .gitignore
+# ========================
+
+# ---------- Python ----------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+eggs/
+*.whl
+*.manifest
+*.spec
+
+# ---------- Virtual Environments ----------
+.venv/
+venv/
+ENV/
+env/
+
+# ---------- uv ----------
+.uv/
+
+# ---------- IDE / Editors ----------
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+
+# ---------- OS ----------
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# ---------- Environment / Secrets ----------
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+
+# ---------- Jupyter Notebooks ----------
+.ipynb_checkpoints/
+
+# ---------- Data / Media (large files) ----------
+data/videos/*
+data/crops/*
+data/outputs/*
+!data/videos/.gitkeep
+!data/crops/.gitkeep
+!data/outputs/.gitkeep
+
+# ---------- Model Weights ----------
+*.pt
+*.pth
+*.onnx
+*.tflite
+*.h5
+*.pb
+*.bin
+weights/
+
+# ---------- Logs ----------
+*.log
+logs/
+
+# ---------- Docker ----------
+docker-compose.override.yml
+
+# ---------- Coverage / Testing ----------
+htmlcov/
+.coverage
+.coverage.*
+.cache
+.pytest_cache/
+nosetests.xml
+coverage.xml
+*.cover
+
+# ---------- Distribution ----------
+*.tar.gz
+*.zip
+
+# ---------- Misc ----------
+*.bak
+*.tmp
+*.temp
