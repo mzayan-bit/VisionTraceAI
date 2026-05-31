@@ -66,7 +66,7 @@ class Settings(BaseSettings):
 
     # ── AI Models ────────────────────────────────────────────────────────
     yolo_model: str = Field(
-        default="yolov8n.pt",
+        default="yolo11n.pt",
         description="YOLO model variant or path to weights file.",
     )
     siglip_model: str = Field(

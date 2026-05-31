@@ -27,8 +27,11 @@ classifiers = [
 ]
 
 dependencies = [
+    "lapx>=0.9.4",
+    "opencv-python>=4.13.0.92",
     "pydantic-settings>=2.14.1",
     "qdrant-client>=1.18.0",
+    "ultralytics>=8.4.58",
 ]
 
 [project.optional-dependencies]
