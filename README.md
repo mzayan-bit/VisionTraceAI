@@ -186,6 +186,30 @@ uv run python scripts/check_qdrant.py
 
 ---
 
+## ✂️ Crop Extraction Pipeline
+
+Prepares tracked individuals for downstream feature extraction (e.g., SigLIP embeddings). The cropper validates bounding boxes, rejects blurred images using a Laplacian variance threshold, and resizes crops to 224x224 RGB.
+
+### Running Crop Extraction
+
+```bash
+uv run python scripts/extract_crops.py data/videos/sample.mp4 --camera-id cam_1 --blur-threshold 50.0
+```
+
+### Output Structure
+
+Crops and metadata are saved hierarchically:
+```
+data/crops/
+└── cam_1/
+    └── track_1/
+        ├── crop_metadata.json
+        ├── track_1_frame_00001.jpg
+        └── track_1_frame_00002.jpg
+```
+
+---
+
 ## 🧪 Testing
 
 ```bash
@@ -221,8 +245,9 @@ mkdocs serve
 | 3     | Enterprise Logging              | ✅ Complete     |
 | 4     | Qdrant Infrastructure           | ✅ Complete     |
 | 5     | Detection & Tracking Pipelines  | ✅ Complete     |
-| 6     | API & Dashboard                 | 🔲 Planned     |
-| 7     | Deployment & Monitoring         | 🔲 Planned     |
+| 6     | Crop Extraction Pipeline        | ✅ Complete     |
+| 7     | API & Dashboard                 | 🔲 Planned     |
+| 8     | Deployment & Monitoring         | 🔲 Planned     |
 
 ---
 

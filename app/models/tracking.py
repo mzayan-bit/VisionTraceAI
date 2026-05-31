@@ -51,3 +51,14 @@ class VideoResult(BaseModel):
     fps: float = Field(..., description="Frames per second of the source video")
     processing_time_sec: float = Field(..., description="Total processing time in seconds")
     frames: list[FrameResult] = Field(default_factory=list, description="Frame-by-frame tracking results")
+
+
+class CropMetadata(BaseModel):
+    """Metadata associated with an extracted object crop."""
+    camera_id: str = Field(..., description="Source camera identifier")
+    track_id: int = Field(..., description="Persistent tracking ID")
+    frame_number: int = Field(..., description="Frame sequence number")
+    timestamp: float = Field(..., description="Timestamp in seconds from video start")
+    crop_path: str = Field(..., description="Relative or absolute path to the saved crop image")
+    bbox: BoundingBox = Field(..., description="Original bounding box coordinates")
+
