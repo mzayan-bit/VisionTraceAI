@@ -69,8 +69,8 @@ data/outputs/*
 weights/
 
 # ---------- Logs ----------
-*.log
-logs/
+logs/*
+!logs/.gitkeep
 
 # ---------- Docker ----------
 docker-compose.override.yml
