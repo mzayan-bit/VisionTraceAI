@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import List
+from typing import List, Generator
 
 import numpy as np
 import pytest
@@ -23,10 +23,8 @@ from app.services.search_engine import VisionSearchEngine
 
 # ── Fixtures ─────────────────────────────────────────────────────────────
 
-
 @pytest.fixture(scope="module")
-def engine() -> VisionSearchEngine:
-    """Boot a fully-initialised in-memory search engine (shared across module)."""
+def engine() -> Generator[VisionSearchEngine, None, None]:
     eng = VisionSearchEngine()
     eng.initialize(use_memory=True)
     yield eng
