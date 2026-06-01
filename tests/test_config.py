@@ -51,7 +51,7 @@ class TestDefaults:
 
     def test_yolo_model_default(self) -> None:
         s = Settings()
-        assert s.yolo_model == "yolov8n.pt"
+        assert s.yolo_model == "yolo11n.pt"
 
     def test_siglip_model_default(self) -> None:
         s = Settings()

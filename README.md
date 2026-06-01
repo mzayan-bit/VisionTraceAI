@@ -248,6 +248,109 @@ for res in results:
 
 ---
 
+## 🏆 Week 1 MVP — Natural Language Search
+
+Stage 9 delivers the fully operational Week 1 MVP: **Video → Tracking → Cropping → Embedding → Qdrant → Natural Language Search**.
+
+### System Architecture
+
+```
+┌──────────────────────────────────────────────────────────────────────────┐
+│                        VisionTraceAI — Week 1 MVP                        │
+│                                                                          │
+│   ┌────────────┐    ┌────────────┐    ┌────────────┐    ┌────────────┐   │
+│   │  📹 Video  │───▸│ 🎯 YOLO11  │───▸│ ✂️ Cropper │───▸│ 🧠 SigLIP  │   │
+│   │   Input    │    │ ByteTrack  │    │  224×224   │    │  768-dim   │   │
+│   └────────────┘    └────────────┘    └────────────┘    └─────┬──────┘   │
+│                                                               │          │
+│                                                               ▼          │
+│   ┌────────────┐    ┌────────────────────────┐    ┌──────────────────┐   │
+│   │ 💬 Text    │───▸│  VisionSearchEngine     │◂──│   🗄️ Qdrant     │   │
+│   │   Query    │    │  search() / search_top_k│   │   Cosine Index   │   │
+│   └────────────┘    └────────────────────────┘    └──────────────────┘   │
+│                              │                                           │
+│                              ▼                                           │
+│                     ┌────────────────┐                                   │
+│                     │ 📋 Ranked      │                                   │
+│                     │ SearchResults  │                                   │
+│                     └────────────────┘                                   │
+└──────────────────────────────────────────────────────────────────────────┘
+```
+
+### Interactive Search Console
+
+Launch the REPL-style search demo:
+
+```bash
+uv run python scripts/search_demo.py
+```
+
+#### Available Commands
+
+| Command | Description |
+|---------|-------------|
+| `<text>` | Free-form semantic search |
+| `/track <id>` | Lookup all crops for a track ID |
+| `/camera <id>` | Lookup all crops for a camera |
+| `/top <k> <query>` | Return exactly k results |
+| `/save` | Export last results to JSON |
+| `/quit` | Exit |
+
+#### Sample Session
+
+```
+╔══════════════════════════════════════════════════════════════╗
+║               🔍 VisionTraceAI Search Console               ║
+╚══════════════════════════════════════════════════════════════╝
+
+  Enter query> person wearing black backpack
+
+  📋 Results for: "person wearing black backpack"
+
+  #    Track      Camera       Timestamp    Similarity   Crop Path
+  ──── ────────── ──────────── ──────────── ──────────── ──────────────────
+  1    17         cam_1        12.50s       0.8912       data/crops/cam_1/track_17/...
+  2    42         cam_1        18.33s       0.8437       data/crops/cam_1/track_42/...
+
+  Total: 2 match(es)
+```
+
+#### Batch Mode
+
+Run queries non-interactively:
+
+```bash
+uv run python scripts/search_demo.py --batch "person wearing backpack" "person in white shirt" "person walking"
+```
+
+### Programmatic API
+
+```python
+from app.services.search_engine import VisionSearchEngine
+
+engine = VisionSearchEngine()
+engine.initialize()
+
+# Semantic search
+results = engine.search("person wearing a blue hoodie", limit=5)
+
+# Person search (auto-augmented prompt)
+results = engine.search_person("tall man with sunglasses")
+
+# Filter by track
+results = engine.search_by_track(track_id=17)
+
+# Filter by camera
+results = engine.search_by_camera(camera_id="cam_1")
+
+# Save results
+engine.save_results(results, query="blue hoodie", output_path="results.json")
+
+engine.shutdown()
+```
+
+---
+
 ## 🧪 Testing
 
 ```bash
@@ -258,7 +361,7 @@ pytest
 pytest --cov=app --cov-report=html
 
 # Run specific test module
-pytest tests/test_core.py -v
+pytest tests/test_search_engine.py -v
 ```
 
 ---
@@ -286,6 +389,7 @@ mkdocs serve
 | 6     | Crop Extraction Pipeline        | ✅ Complete     |
 | 7     | SigLIP Embedding Engine         | ✅ Complete     |
 | 8     | Semantic Memory Pipeline        | ✅ Complete     |
+| 9     | Week 1 MVP — Search Engine      | ✅ Complete     |
 
 ---
 
