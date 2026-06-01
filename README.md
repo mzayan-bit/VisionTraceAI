@@ -8,6 +8,8 @@
     <a href="https://github.com/mzayan-bit/VisionTraceAI/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue?style=flat-square" alt="License"></a>
     <img src="https://img.shields.io/badge/python-3.11%2B-blue?style=flat-square&logo=python&logoColor=white" alt="Python 3.11+">
     <img src="https://img.shields.io/badge/package%20manager-uv-blueviolet?style=flat-square" alt="uv">
+    <img src="https://img.shields.io/badge/Week%201%20MVP-Complete-brightgreen?style=flat-square" alt="Week 1 MVP">
+    <img src="https://img.shields.io/badge/tests-99%20passing-brightgreen?style=flat-square" alt="Tests">
   </p>
 </p>
 
@@ -366,6 +368,47 @@ pytest tests/test_search_engine.py -v
 
 ---
 
+## ⚡ Benchmarks & Evaluation
+
+```bash
+# Run end-to-end pipeline benchmarks
+uv run python scripts/benchmark_pipeline.py
+
+# Run search quality evaluation
+uv run python scripts/evaluate_search.py
+
+# Generate the Week 1 final report
+uv run python scripts/generate_week1_report.py
+```
+
+Results are saved to `data/outputs/benchmark_results.json` and `data/outputs/search_evaluation.json`. The final report is generated at `docs/WEEK1_FINAL_REPORT.md`.
+
+---
+
+## 🎬 MVP Demo
+
+Launch the interactive Week 1 demo:
+
+```bash
+uv run python scripts/demo_week1.py
+```
+
+```
+╔══════════════════════════════════════════════════════════════╗
+║           🔍 VisionTraceAI — Week 1 MVP Demo                ║
+╠══════════════════════════════════════════════════════════════╣
+║   1  Process Video        (Track + Crop + Embed + Store)     ║
+║   2  Search Person        (Natural language query)           ║
+║   3  Search Track         (By track ID)                      ║
+║   4  Search Camera        (By camera ID)                     ║
+║   5  Run Benchmarks       (Pipeline performance)             ║
+║   6  Generate Report      (Week 1 final report)              ║
+║   7  Exit                                                    ║
+╚══════════════════════════════════════════════════════════════╝
+```
+
+---
+
 ## 📖 Documentation
 
 Documentation is located in the `docs/` directory. To build and serve locally:
@@ -390,6 +433,7 @@ mkdocs serve
 | 7     | SigLIP Embedding Engine         | ✅ Complete     |
 | 8     | Semantic Memory Pipeline        | ✅ Complete     |
 | 9     | Week 1 MVP — Search Engine      | ✅ Complete     |
+| 10    | Production MVP Polish           | ✅ Complete     |
 
 ---
 
