@@ -1,6 +1,6 @@
 # 📊 VisionTraceAI — Week 1 Final Report
 
-**Generated:** 2026-06-01 16:43 UTC
+**Generated:** 2026-06-01 19:03 UTC
 **Status:** ✅ Week 1 MVP Complete
 **Repository:** [github.com/mzayan-bit/VisionTraceAI](https://github.com/mzayan-bit/VisionTraceAI)
 
@@ -64,7 +64,7 @@ VisionTraceAI/
 | Metric | Value |
 |--------|-------|
 | Application source lines | 1,848 |
-| Test source lines | 1,475 |
+| Test source lines | 1,473 |
 | Script source lines | 1,826 |
 | Total test functions | 111 |
 | Stages completed | 10 / 10 |
@@ -89,53 +89,53 @@ VisionTraceAI/
 
 | Metric | Value |
 |--------|-------|
-| total_frames | 90 |
-| total_time_sec | 2.158 |
-| avg_ms_per_frame | 23.83 |
-| processing_fps | 41.7 |
-| tracks_detected | 0 |
-| peak_memory_mb | 4.77 |
+| total_frames | 711 |
+| total_time_sec | 16.97 |
+| avg_ms_per_frame | 23.46 |
+| processing_fps | 41.9 |
+| tracks_detected | 6921 |
+| peak_memory_mb | 10.75 |
 
 ### Crop Extraction
 
 | Metric | Value |
 |--------|-------|
-| total_crops_processed | 0 |
-| saved_crops | 0 |
+| total_crops_processed | 6921 |
+| saved_crops | 6921 |
 | rejected_crops | 0 |
-| avg_ms_per_crop | 0 |
-| total_time_ms | 0 |
+| avg_ms_per_crop | 2.17 |
+| total_time_ms | 15016.75 |
 
 ### SigLIP Embedding
 
 | Metric | Value |
 |--------|-------|
-| single_image_avg_ms | 65.18 |
-| single_text_avg_ms | 142.27 |
-| batch_images_10_ms | 393.3 |
-| batch_texts_5_ms | 60.94 |
-| image_throughput_per_sec | 25.43 |
-| text_throughput_per_sec | 82.05 |
+| single_image_avg_ms | 124.69 |
+| single_text_avg_ms | 25.79 |
+| batch_images_10_ms | 315.21 |
+| batch_texts_5_ms | 58.5 |
+| image_throughput_per_sec | 31.72 |
+| text_throughput_per_sec | 85.47 |
 
 ### Qdrant Vector DB
 
 | Metric | Value |
 |--------|-------|
 | vectors_inserted | 100 |
-| batch_insert_ms | 16.74 |
-| avg_insert_per_vector_ms | 0.167 |
-| avg_search_ms | 0.41 |
-| search_throughput_per_sec | 2464.77 |
+| batch_insert_ms | 17.27 |
+| avg_insert_per_vector_ms | 0.173 |
+| avg_search_ms | 0.52 |
+| search_throughput_per_sec | 1918.27 |
 
 ### End-to-End Search
 
 | Metric | Value |
 |--------|-------|
 | queries_run | 5 |
-| avg_search_latency_ms | 25.75 |
-| min_search_latency_ms | 21.94 |
-| max_search_latency_ms | 39.72 |
-| total_search_time_ms | 128.77 |
+| avg_search_latency_ms | 25.81 |
+| min_search_latency_ms | 22.03 |
+| max_search_latency_ms | 40.61 |
+| total_search_time_ms | 129.07 |
 
 ---
 
