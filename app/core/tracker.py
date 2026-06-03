@@ -22,11 +22,14 @@ logger = get_logger(__name__)
 class VisionTracker:
     """YOLO11 + ByteTrack powered tracking engine."""
 
-    def __init__(self) -> None:
+    def __init__(self, trajectory_store=None, camera_id: str = "camera_1") -> None:
         self.settings = get_settings()
         self.model: YOLO | None = None
         self.device = self.settings.device
         self.model_path = self.settings.yolo_model
+        
+        self.trajectory_store = trajectory_store
+        self.camera_id = camera_id
 
     def initialize_model(self) -> None:
         """Load the YOLO model."""
@@ -69,18 +72,37 @@ class VisionTracker:
             confidences = result.boxes.conf.cpu().numpy()
             
             for box, track_id, conf in zip(boxes, track_ids, confidences):
-                tracks.append(
-                    TrackResult(
-                        track_id=int(track_id),
-                        confidence=float(conf),
-                        bbox=BoundingBox(
-                            x1=float(box[0]),
-                            y1=float(box[1]),
-                            x2=float(box[2]),
-                            y2=float(box[3])
-                        )
-                    )
+                bbox_obj = BoundingBox(
+                    x1=float(box[0]),
+                    y1=float(box[1]),
+                    x2=float(box[2]),
+                    y2=float(box[3])
                 )
+                
+                # Create TrackResult
+                track_res = TrackResult(
+                    track_id=int(track_id),
+                    confidence=float(conf),
+                    bbox=bbox_obj
+                )
+                tracks.append(track_res)
+                
+                # Write to Redis if a store was provided
+                if self.trajectory_store is not None:
+                    try:
+                        self.trajectory_store.save_track(
+                            track_id=int(track_id),
+                            camera_id=self.camera_id,
+                            timestamp=timestamp,
+                            bbox={
+                                "x1": bbox_obj.x1,
+                                "y1": bbox_obj.y1,
+                                "x2": bbox_obj.x2,
+                                "y2": bbox_obj.y2,
+                            }
+                        )
+                    except Exception as exc:
+                        logger.error("Failed to write track to Redis", extra={"track_id": track_id, "error": str(exc)})
                 
         annotated_frame = result.plot()
         

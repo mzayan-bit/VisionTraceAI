@@ -46,7 +46,15 @@ def main() -> int:
         "output_json": str(json_output_path)
     })
 
-    tracker = VisionTracker()
+    from backend.storage.trajectory_store import TrajectoryStore
+    
+    store = TrajectoryStore()
+    store.connect()
+    
+    # Example hardcoded camera id for the script
+    camera_id = "test_camera_1"
+    
+    tracker = VisionTracker(trajectory_store=store, camera_id=camera_id)
     try:
         tracker.initialize_model()
         result = tracker.track_video(video_path, annotated_video_path)
@@ -62,6 +70,7 @@ def main() -> int:
         return 1
     finally:
         tracker.shutdown()
+        store.close()
 
     return 0
 
