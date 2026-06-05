@@ -5,10 +5,10 @@ Node responsible for analyzing user queries and determining which search tools
 or workflows to trigger.
 """
 
-from typing import Any, Dict, Literal
+from typing import Any, Dict, Literal, cast
 
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_openai import ChatOpenAI
+from langchain_google_genai import ChatGoogleGenerativeAI
 from pydantic import BaseModel, Field
 
 from backend.agent.graph.state import AgentState
@@ -56,15 +56,15 @@ def supervisor_node(state: AgentState) -> Dict[str, Any]:
     
     Evaluates the current `user_query` and updates the state with the `parsed_intent`.
     """
-    # Initialize the LLM (requires OPENAI_API_KEY in the environment or passed explicitly)
-    llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)
+    # Initialize the LLM (requires GOOGLE_API_KEY in the environment or passed explicitly)
+    llm = ChatGoogleGenerativeAI(model="gemini-3.5-flash", temperature=0)
     structured_llm = llm.with_structured_output(IntentClassification)
     
     prompt = get_supervisor_prompt()
     chain = prompt | structured_llm
     
     # Run the chain to classify the intent
-    result: IntentClassification = chain.invoke({"user_query": state["user_query"]})
+    result = cast(IntentClassification, chain.invoke({"user_query": state["user_query"]}))
     
     # Return partial state update
     return {
