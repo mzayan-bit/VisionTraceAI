@@ -12,6 +12,7 @@ from pydantic import BaseModel, Field
 from app.config.settings import get_settings
 from backend.agent.executor import VisionAgentExecutor
 from app.utils.logger import get_logger
+from api.websocket import ws_router
 
 logger = get_logger(__name__)
 
@@ -34,6 +35,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Register WebSocket routes
+app.include_router(ws_router, prefix="/ws")
 
 # Initialize the LangGraph agent executor lazily
 agent_executor: VisionAgentExecutor | None = None
