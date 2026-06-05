@@ -22,13 +22,14 @@ logger = get_logger(__name__)
 class VisionTracker:
     """YOLO11 + ByteTrack powered tracking engine."""
 
-    def __init__(self, trajectory_store=None, camera_id: str = "camera_1") -> None:
+    def __init__(self, trajectory_store=None, camera_id: str = "camera_1", kafka_producer=None) -> None:
         self.settings = get_settings()
         self.model: YOLO | None = None
         self.device = self.settings.device
         self.model_path = self.settings.yolo_model
         
         self.trajectory_store = trajectory_store
+        self.kafka_producer = kafka_producer
         self.camera_id = camera_id
 
     def initialize_model(self) -> None:
@@ -87,6 +88,13 @@ class VisionTracker:
                 )
                 tracks.append(track_res)
                 
+                bbox_dict = {
+                    "x1": bbox_obj.x1,
+                    "y1": bbox_obj.y1,
+                    "x2": bbox_obj.x2,
+                    "y2": bbox_obj.y2,
+                }
+                
                 # Write to Redis if a store was provided
                 if self.trajectory_store is not None:
                     try:
@@ -94,15 +102,24 @@ class VisionTracker:
                             track_id=int(track_id),
                             camera_id=self.camera_id,
                             timestamp=timestamp,
-                            bbox={
-                                "x1": bbox_obj.x1,
-                                "y1": bbox_obj.y1,
-                                "x2": bbox_obj.x2,
-                                "y2": bbox_obj.y2,
-                            }
+                            bbox=bbox_dict,
                         )
                     except Exception as exc:
                         logger.error("Failed to write track to Redis", extra={"track_id": track_id, "error": str(exc)})
+                
+                # Publish to Kafka if a producer was provided
+                if self.kafka_producer is not None:
+                    try:
+                        self.kafka_producer.publish_track_event(
+                            frame_id=frame_number,
+                            track_id=int(track_id),
+                            bbox=bbox_dict,
+                            camera_id=self.camera_id,
+                            timestamp=timestamp,
+                            confidence=float(conf),
+                        )
+                    except Exception as exc:
+                        logger.error("Failed to publish track to Kafka", extra={"track_id": track_id, "error": str(exc)})
                 
         annotated_frame = result.plot()
         
@@ -189,5 +206,11 @@ class VisionTracker:
 
     def shutdown(self) -> None:
         """Clean up resources."""
+        # Flush any pending Kafka messages before shutting down
+        if self.kafka_producer is not None:
+            try:
+                self.kafka_producer.flush(timeout=5.0)
+            except Exception as exc:
+                logger.error("Failed to flush Kafka producer on shutdown", extra={"error": str(exc)})
         self.model = None
         logger.info("VisionTracker shut down")
