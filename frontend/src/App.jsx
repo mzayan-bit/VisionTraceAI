@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Activity, Camera, Cpu, Wifi, WifiOff } from 'lucide-react';
+import VideoPlayer from './components/VideoPlayer';
 import './App.css';
 
 // Assume default 1080p stream for scaling bounding boxes
@@ -105,17 +106,6 @@ function App() {
     });
   };
 
-  // Convert absolute coordinates to percentage for responsive rendering
-  const getBoxStyle = (bbox) => {
-    if (!bbox) return {};
-    return {
-      left: `${(bbox.x1 / FRAME_WIDTH) * 100}%`,
-      top: `${(bbox.y1 / FRAME_HEIGHT) * 100}%`,
-      width: `${((bbox.x2 - bbox.x1) / FRAME_WIDTH) * 100}%`,
-      height: `${((bbox.y2 - bbox.y1) / FRAME_HEIGHT) * 100}%`
-    };
-  };
-
   return (
     <div className="dashboard-container">
       {/* LEFT PANEL - Live Stream */}
@@ -131,31 +121,7 @@ function App() {
           </div>
         </div>
         
-        <div className="video-container">
-          {/* We use a placeholder background. In a real scenario, this would be an RTSP WebRTC stream or MJPEG img */}
-          <div className="video-feed" style={{
-            background: 'linear-gradient(45deg, #1a1d2c 0%, #0f111a 100%)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: 'var(--text-secondary)'
-          }}>
-            {!isConnected && "Waiting for video stream connection..."}
-          </div>
-          
-          {/* Render Bounding Boxes */}
-          {Object.values(activeTracks).map(track => (
-            <div 
-              key={track.track_id} 
-              className="bounding-box"
-              style={getBoxStyle(track.bbox)}
-            >
-              <div className="bounding-box-label">
-                ID: {track.track_id} {(track.confidence * 100).toFixed(0)}%
-              </div>
-            </div>
-          ))}
-        </div>
+        <VideoPlayer activeTracks={activeTracks} isConnected={isConnected} />
       </div>
 
       {/* RIGHT PANEL - Analytics */}
