@@ -15,10 +15,16 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 from app.utils.logger import get_logger
 from backend.streaming.color_engine import ColorEngine
+from backend.storage.redis_client import RedisClient
 
 logger = get_logger(__name__)
 
 color_engine = ColorEngine()
+redis_client = RedisClient()
+try:
+    redis_client.connect()
+except Exception:
+    pass
 
 ws_router = APIRouter()
 
@@ -36,6 +42,8 @@ class ConnectionManager:
         self.active_connections: list[WebSocket] = []
         self.queues: dict[WebSocket, asyncio.Queue] = {}
         self.loop = asyncio.get_event_loop()
+        self.frame_count = 0
+        self.last_fps_time = time.time()
 
     async def connect(self, websocket: WebSocket) -> None:
         """Accept a new connection and initialize its frame buffer."""
@@ -93,10 +101,28 @@ class ConnectionManager:
 
         message["ws_server_time"] = time.time()
         produced_at = message.get("produced_at")
+        
+        # Calculate latency
+        latency_ms = 0
         if produced_at:
-            message["latency_ms"] = round((message["ws_server_time"] - produced_at) * 1000, 2)
-        else:
-            message["latency_ms"] = 0
+            latency_ms = round((message["ws_server_time"] - produced_at) * 1000, 2)
+            message["latency_ms"] = latency_ms
+
+        # Calculate FPS
+        self.frame_count += 1
+        now = time.time()
+        if now - self.last_fps_time >= 1.0:
+            current_fps = self.frame_count / (now - self.last_fps_time)
+            self.frame_count = 0
+            self.last_fps_time = now
+            
+            # Push metrics to Redis
+            if redis_client.is_connected:
+                try:
+                    redis_client.set("metrics:system_fps", str(round(current_fps, 1)), ttl=60)
+                    redis_client.set("metrics:pipeline_latency", str(latency_ms), ttl=60)
+                except Exception:
+                    pass
 
         # Optional: Frame Annotator logic if needed (e.g., drawing on the frame)
         # Assuming the frame is already base64 encoded by the producer.

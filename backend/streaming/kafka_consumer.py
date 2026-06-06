@@ -16,6 +16,7 @@ from __future__ import annotations
 import json
 import os
 import time
+import concurrent.futures
 from pathlib import Path
 from typing import Any, Dict, List
 
@@ -58,6 +59,7 @@ class StreamingPipelineConsumer:
 
         self.consumer: Any = None
         self.running = False
+        self.executor = concurrent.futures.ThreadPoolExecutor(max_workers=4)
 
         # Services will be lazily initialized in connect()
         self.embedder: SigLIPEmbeddingService | None = None
@@ -183,35 +185,91 @@ class StreamingPipelineConsumer:
             logger.error("Failed to process event image", extra={"error": str(e), "track_id": track_id})
             # We re-raise to trigger the retry mechanism at the batch level if desired, 
             # or swallow to isolate failure. Swallowing to isolate failure:
-            pass
+        pass
+
+    def _async_batch_inference(self, valid_events: List[Dict[str, Any]]) -> None:
+        """Run batch embeddings and Qdrant/Redis insertions in a background thread."""
+        images_to_embed = []
+        point_data = []
+        
+        for event in valid_events:
+            camera_id = event.get("camera_id", "unknown")
+            track_id = event.get("track_id", -1)
+            frame_id = event.get("frame_id", 0)
+            crop_path = self.get_crop_path(camera_id, track_id, frame_id)
+            if crop_path.exists():
+                try:
+                    img = Image.open(crop_path).convert("RGB")
+                    images_to_embed.append(img)
+                    point_data.append(event)
+                except Exception:
+                    pass
+
+        if not images_to_embed:
+            return
+
+        try:
+            # 1. Batch SigLIP
+            if self.embedder and self.qdrant:
+                siglip_embs = self.embedder.encode_images(images_to_embed)
+                for i, emb in enumerate(siglip_embs):
+                    event = point_data[i]
+                    point_id = f"{event.get('camera_id', 'unknown')}_{event.get('track_id', -1)}_{event.get('frame_id', 0)}"
+                    self.qdrant.insert_vector(
+                        point_id=point_id,
+                        vector=emb.tolist(),
+                        payload={
+                            "camera_id": event.get("camera_id", "unknown"),
+                            "track_id": event.get("track_id", -1),
+                            "frame_id": event.get("frame_id", 0),
+                            "timestamp": event.get("timestamp", 0.0),
+                            "bbox": event.get("bbox", {}),
+                            "crop_path": str(self.get_crop_path(event.get("camera_id", "unknown"), event.get("track_id", -1), event.get("frame_id", 0)))
+                        }
+                    )
+                    
+            # 2. FastReID
+            if self.reid and self.color_engine:
+                for i, img in enumerate(images_to_embed):
+                    event = point_data[i]
+                    reid_emb = self.reid.extract_features(img)
+                    self.color_engine.assign_identity(
+                        track_id=event.get("track_id", -1),
+                        reid_emb=reid_emb,
+                        camera_source=event.get("camera_id", "unknown")
+                    )
+        except Exception as e:
+            logger.error("Batch inference failed", extra={"error": str(e)})
 
     def _process_batch(self, messages: List[Any]) -> None:
         """Process a batch of Kafka messages."""
+        valid_events = []
         for msg in messages:
-            if msg is None:
-                continue
-            if msg.error():
-                logger.error("Kafka message error", extra={"error": msg.error().str()})
+            if msg is None or msg.error():
+                if msg and msg.error():
+                    logger.error("Kafka message error", extra={"error": msg.error().str()})
                 continue
                 
             try:
                 payload = json.loads(msg.value().decode('utf-8'))
+                valid_events.append(payload)
                 
-                # Retry loop
-                for attempt in range(self.max_retries):
-                    try:
-                        self._process_event(payload)
-                        break
-                    except Exception as e:
-                        if attempt == self.max_retries - 1:
-                            logger.error("Event processing failed after retries", extra={"error": str(e), "payload": payload})
-                        else:
-                            time.sleep(0.5 * (attempt + 1))  # Exponential backoff
-                            
+                # 1. Update Redis Trajectory synchronously to ensure consistency
+                if self.trajectory_store:
+                    self.trajectory_store.save_track(
+                        track_id=payload.get("track_id", -1),
+                        camera_id=payload.get("camera_id", "unknown"),
+                        timestamp=payload.get("timestamp", 0.0),
+                        bbox=payload.get("bbox", {}),
+                    )
             except json.JSONDecodeError:
-                logger.error("Failed to decode JSON payload", extra={"value": msg.value()})
+                logger.error("Failed to decode JSON payload")
             except Exception as e:
-                logger.error("Unexpected error processing message", extra={"error": str(e)})
+                logger.error("Unexpected error parsing message", extra={"error": str(e)})
+
+        if valid_events:
+            # 2. Offload heavy inference tasks
+            self.executor.submit(self._async_batch_inference, valid_events)
 
     def run(self) -> None:
         """Main polling loop."""
@@ -247,6 +305,8 @@ class StreamingPipelineConsumer:
             logger.info("Kafka consumer closed")
         if self.trajectory_store:
             self.trajectory_store.close()
+        if self.executor:
+            self.executor.shutdown(wait=False)
 
     def __enter__(self) -> StreamingPipelineConsumer:
         self.connect()

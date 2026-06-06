@@ -1,5 +1,6 @@
 import json
 import random
+import time
 import numpy as np
 from typing import Any
 
@@ -28,7 +29,21 @@ class ColorEngine:
             try:
                 self.redis.connect()
             except Exception as e:
+            except Exception as e:
                 logger.warning(f"ColorEngine Redis connection failed: {e}")
+                
+        self._local_cache: dict[str, Any] = {}
+        self._cache_times: dict[str, float] = {}
+        self.cache_ttl = 1.0  # 1 second TTL for high-frequency queries
+        
+    def _get_cached(self, key: str) -> Any | None:
+        if key in self._local_cache and (time.time() - self._cache_times.get(key, 0)) < self.cache_ttl:
+            return self._local_cache[key]
+        return None
+        
+    def _set_cached(self, key: str, value: Any) -> None:
+        self._local_cache[key] = value
+        self._cache_times[key] = time.time()
 
     def assign_identity(self, track_id: int, reid_emb: np.ndarray | list[float], camera_source: str) -> dict[str, Any]:
         """Match embedding to existing identities or create new one, then assign a color."""
@@ -46,21 +61,38 @@ class ColorEngine:
             emb_vec = emb_vec / norm
 
         # 1. Fetch existing identities
-        identity_keys = self.redis.keys("identity:emb:*")
+        start_time = time.time()
+        
+        identity_keys = self._get_cached("identity_keys")
+        if identity_keys is None:
+            identity_keys = self.redis.keys("identity:emb:*")
+            self._set_cached("identity_keys", identity_keys)
+            
         best_match_id = None
         best_score = -1.0
         
         for key in identity_keys:
             try:
-                data = self.redis.get(key)
-                if data:
-                    stored_emb = np.array(json.loads(data))
+                stored_emb = self._get_cached(f"emb_val:{key}")
+                if stored_emb is None:
+                    data = self.redis.get(key)
+                    if data:
+                        stored_emb = np.array(json.loads(data))
+                        self._set_cached(f"emb_val:{key}", stored_emb)
+                
+                if stored_emb is not None:
                     score = float(np.dot(emb_vec, stored_emb))
                     if score > best_score:
                         best_score = score
                         best_match_id = key.split(":")[-1]
             except Exception:
                 continue
+                
+        query_time = (time.time() - start_time) * 1000
+        try:
+            self.redis.set("metrics:redis_query_time", str(round(query_time, 2)), ttl=60)
+        except Exception:
+            pass
 
         # 2. Check threshold (0.85)
         if best_match_id and best_score > 0.85:
@@ -107,11 +139,18 @@ class ColorEngine:
         if not self.redis.is_connected:
             return COLORS[track_id % len(COLORS)]
             
+        cached_color = self._get_cached(f"color_for:{track_id}")
+        if cached_color:
+            return cached_color
+            
         data = self.redis.get(f"track_color:{track_id}")
         if data:
             try:
                 mapping = json.loads(data)
-                return mapping.get("color")
+                color = mapping.get("color")
+                if color:
+                    self._set_cached(f"color_for:{track_id}", color)
+                    return color
             except Exception:
                 pass
         return None

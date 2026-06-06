@@ -10,11 +10,13 @@ import time
 from pathlib import Path
 
 import numpy as np
+import cv2
 from ultralytics import YOLO
 
 from app.config.settings import get_settings
 from app.models.tracking import BoundingBox, FrameResult, TrackResult, VideoResult
 from app.utils.logger import get_logger
+from backend.storage.redis_client import RedisClient
 
 logger = get_logger(__name__)
 
@@ -31,6 +33,18 @@ class VisionTracker:
         self.trajectory_store = trajectory_store
         self.kafka_producer = kafka_producer
         self.camera_id = camera_id
+        
+        self.redis_client = RedisClient()
+        if not self.redis_client.is_connected:
+            try:
+                self.redis_client.connect()
+            except Exception:
+                pass
+                
+        self.last_metric_check = 0.0
+        self.system_fps = 30.0
+        self.system_latency = 0.0
+        self.scale_cooldown_until = 0.0
 
     def initialize_model(self) -> None:
         """Load the YOLO model."""
@@ -45,7 +59,7 @@ class VisionTracker:
             logger.error("Failed to load YOLO model", extra={"error": str(exc)})
             raise RuntimeError(f"Model initialization failed: {exc}") from exc
 
-    def track_frame(self, frame: np.ndarray, frame_number: int, timestamp: float) -> tuple[FrameResult, np.ndarray]:
+    def track_frame(self, frame: np.ndarray, frame_number: int, timestamp: float, imgsz: int = 640) -> tuple[FrameResult, np.ndarray]:
         """Track objects in a single frame.
         
         Returns:
@@ -61,7 +75,8 @@ class VisionTracker:
             tracker="bytetrack.yaml",
             persist=True,
             verbose=False,
-            device=self.device
+            device=self.device,
+            imgsz=imgsz
         )
         
         result = results[0]
@@ -163,9 +178,35 @@ class VisionTracker:
                 if not ret:
                     break
                     
+                # Auto-scaling logic check
+                now = time.time()
+                if now - self.last_metric_check > 1.0:
+                    self.last_metric_check = now
+                    if self.redis_client.is_connected:
+                        try:
+                            fps_str = self.redis_client.get("metrics:system_fps")
+                            if fps_str:
+                                self.system_fps = float(fps_str)
+                            lat_str = self.redis_client.get("metrics:pipeline_latency")
+                            if lat_str:
+                                self.system_latency = float(lat_str)
+                        except Exception:
+                            pass
+
+                # If FPS < 20, skip odd frames
+                if self.system_fps < 20.0 and now > self.scale_cooldown_until:
+                    if frame_number % 2 != 0:
+                        frame_number += 1
+                        continue
+
+                # If latency > 300, use lower resolution
+                current_imgsz = 640
+                if self.system_latency > 300.0 and now > self.scale_cooldown_until:
+                    current_imgsz = 320
+                    
                 timestamp = frame_number / fps if fps > 0 else 0.0
                 
-                frame_res, annotated_frame = self.track_frame(frame, frame_number, timestamp)
+                frame_res, annotated_frame = self.track_frame(frame, frame_number, timestamp, imgsz=current_imgsz)
                 frame_results.append(frame_res)
                 total_tracks += len(frame_res.tracks)
                 
