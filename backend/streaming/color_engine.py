@@ -29,7 +29,6 @@ class ColorEngine:
             try:
                 self.redis.connect()
             except Exception as e:
-            except Exception as e:
                 logger.warning(f"ColorEngine Redis connection failed: {e}")
                 
         self._local_cache: dict[str, Any] = {}
