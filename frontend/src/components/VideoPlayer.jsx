@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 
 const COLORS = [
   '#3b82f6', // blue
@@ -10,11 +10,14 @@ const COLORS = [
   '#06b6d4', // cyan
 ];
 
+// Target internal resolution
 const FRAME_WIDTH = 1920;
 const FRAME_HEIGHT = 1080;
 
-const VideoPlayer = ({ activeTracks, isConnected }) => {
+const VideoPlayer = ({ latestFrame, isConnected, activeTrackId }) => {
   const canvasRef = useRef(null);
+  const imageRef = useRef(new Image());
+  const interpolatedBoxesRef = useRef({});
 
   // Canvas drawing loop
   useEffect(() => {
@@ -25,58 +28,100 @@ const VideoPlayer = ({ activeTracks, isConnected }) => {
     let animationFrameId;
 
     const render = () => {
-      // Clear previous frame to prevent ghosting/flicker
+      // Clear previous frame
       ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // 1. Draw base64 background frame if available
+      if (latestFrame && latestFrame.frame) {
+        if (imageRef.current.src !== `data:image/jpeg;base64,${latestFrame.frame}`) {
+          imageRef.current.src = `data:image/jpeg;base64,${latestFrame.frame}`;
+        }
+        
+        // Only draw if image is loaded to prevent flickering
+        if (imageRef.current.complete && imageRef.current.naturalWidth > 0) {
+          ctx.drawImage(imageRef.current, 0, 0, canvas.width, canvas.height);
+        }
+      }
 
       // Internal resolution scaling
       const scaleX = canvas.width / FRAME_WIDTH;
       const scaleY = canvas.height / FRAME_HEIGHT;
 
-      // Draw all active tracks
-      Object.values(activeTracks).forEach((track) => {
-        if (!track.bbox) return;
+      // Ensure boxes exist
+      const detections = latestFrame?.detections || [];
+      const track_ids = latestFrame?.track_ids || [];
 
-        const { bbox, track_id, confidence } = track;
+      // Update target interpolations
+      const currentTargets = {};
+      detections.forEach((bbox, idx) => {
+        const track_id = track_ids[idx];
+        if (track_id === undefined) return;
+        currentTargets[track_id] = bbox;
+      });
+
+      // Remove stale boxes
+      Object.keys(interpolatedBoxesRef.current).forEach(id => {
+        if (!currentTargets[id]) {
+          delete interpolatedBoxesRef.current[id];
+        }
+      });
+
+      // 2. Draw all active tracks with interpolation
+      Object.entries(currentTargets).forEach(([id, targetBox]) => {
+        const track_id = parseInt(id, 10);
+        const isActive = track_id === activeTrackId;
         
-        // Color coding based on track_id
-        const color = COLORS[track_id % COLORS.length];
+        // Initialize or interpolate
+        let currentBox = interpolatedBoxesRef.current[track_id];
+        if (!currentBox) {
+          currentBox = { ...targetBox }; // snap to target
+        } else {
+          // Linear interpolation factor (0.3 = 30% towards target per frame)
+          const lerp = 0.3; 
+          currentBox.x1 += (targetBox.x1 - currentBox.x1) * lerp;
+          currentBox.y1 += (targetBox.y1 - currentBox.y1) * lerp;
+          currentBox.x2 += (targetBox.x2 - currentBox.x2) * lerp;
+          currentBox.y2 += (targetBox.y2 - currentBox.y2) * lerp;
+        }
+        interpolatedBoxesRef.current[track_id] = currentBox;
 
-        const x = bbox.x1 * scaleX;
-        const y = bbox.y1 * scaleY;
-        const w = (bbox.x2 - bbox.x1) * scaleX;
-        const h = (bbox.y2 - bbox.y1) * scaleY;
+        const color = isActive ? '#ffffff' : COLORS[track_id % COLORS.length];
+
+        const x = currentBox.x1 * scaleX;
+        const y = currentBox.y1 * scaleY;
+        const w = (currentBox.x2 - currentBox.x1) * scaleX;
+        const h = (currentBox.y2 - currentBox.y1) * scaleY;
 
         // 1. Soft glow effect for bounding box
-        ctx.shadowBlur = 12;
+        ctx.shadowBlur = isActive ? 20 : 12;
         ctx.shadowColor = color;
         ctx.strokeStyle = color;
-        ctx.lineWidth = 3;
+        ctx.lineWidth = isActive ? 4 : 3;
 
         // 2. Rounded bounding box
         ctx.beginPath();
         if (ctx.roundRect) {
           ctx.roundRect(x, y, w, h, 8);
         } else {
-          // Fallback if roundRect is not supported
           ctx.rect(x, y, w, h);
         }
         ctx.stroke();
 
-        // 3. Label background (No glow to keep text crisp)
+        // 3. Label background
         ctx.shadowBlur = 0;
         ctx.fillStyle = color;
         ctx.beginPath();
         if (ctx.roundRect) {
-          ctx.roundRect(x, y - 26, 90, 26, [6, 6, 0, 0]);
+          ctx.roundRect(x, y - 26, 70, 26, [6, 6, 0, 0]);
         } else {
-          ctx.rect(x, y - 26, 90, 26);
+          ctx.rect(x, y - 26, 70, 26);
         }
         ctx.fill();
 
         // 4. Label text
-        ctx.fillStyle = '#ffffff';
+        ctx.fillStyle = isActive ? '#000000' : '#ffffff';
         ctx.font = '600 13px "Outfit", sans-serif';
-        ctx.fillText(`ID: ${track_id} ${(confidence * 100).toFixed(0)}%`, x + 8, y - 8);
+        ctx.fillText(`ID: ${track_id}`, x + 8, y - 8);
       });
 
       // Synchronize with display refresh rate
@@ -86,7 +131,7 @@ const VideoPlayer = ({ activeTracks, isConnected }) => {
     render();
 
     return () => cancelAnimationFrame(animationFrameId);
-  }, [activeTracks]);
+  }, [latestFrame, activeTrackId]);
 
   return (
     <div style={{
@@ -100,19 +145,21 @@ const VideoPlayer = ({ activeTracks, isConnected }) => {
       borderBottomRightRadius: 'var(--radius-lg)'
     }}>
       
-      {/* Background / Placeholder stream */}
-      <div style={{
-        position: 'absolute',
-        top: 0, left: 0, width: '100%', height: '100%',
-        background: 'linear-gradient(45deg, #1a1d2c 0%, #0f111a 100%)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        color: 'var(--text-secondary)',
-        opacity: 0.5
-      }}>
-        {!isConnected && "Waiting for video stream connection..."}
-      </div>
+      {/* Background / Placeholder stream if no frame */}
+      {(!latestFrame || !latestFrame.frame) && (
+        <div style={{
+          position: 'absolute',
+          top: 0, left: 0, width: '100%', height: '100%',
+          background: 'linear-gradient(45deg, #1a1d2c 0%, #0f111a 100%)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          color: 'var(--text-secondary)',
+          opacity: 0.5
+        }}>
+          {!isConnected ? "Connecting to WebSocket stream..." : "Waiting for video frames..."}
+        </div>
+      )}
 
       {/* Hardware-accelerated Canvas Overlay Layer */}
       <canvas

@@ -1,28 +1,25 @@
 import { useState, useEffect, useRef } from 'react';
-import { Activity, Camera, Cpu, Wifi, WifiOff } from 'lucide-react';
+import { Camera, Cpu } from 'lucide-react';
 import VideoPlayer from './components/VideoPlayer';
+import ChatPanel from './components/ChatPanel';
 import './App.css';
-
-// Assume default 1080p stream for scaling bounding boxes
-const FRAME_WIDTH = 1920;
-const FRAME_HEIGHT = 1080;
 
 function App() {
   const [isConnected, setIsConnected] = useState(false);
   const [framesReceived, setFramesReceived] = useState(0);
   const [fps, setFps] = useState(0);
   const [latency, setLatency] = useState(0);
-  const [activeTracks, setActiveTracks] = useState({});
+  const [latestFrame, setLatestFrame] = useState(null);
   const [recentTracks, setRecentTracks] = useState([]);
+  const [activeTrackId, setActiveTrackId] = useState(null);
   
   const wsRef = useRef(null);
-  const lastFrameTimeRef = useRef(Date.now());
   const framesCountRef = useRef(0);
 
   // Connect to WebSocket
   useEffect(() => {
     const connect = () => {
-      const ws = new WebSocket('ws://localhost:8000/ws/stream');
+      const ws = new WebSocket('ws://localhost:8000/ws/video');
       
       ws.onopen = () => {
         setIsConnected(true);
@@ -62,18 +59,6 @@ function App() {
     const interval = setInterval(() => {
       setFps(framesCountRef.current);
       framesCountRef.current = 0;
-      
-      // Cleanup stale tracks (not seen in last 1 second)
-      const now = Date.now();
-      setActiveTracks(prev => {
-        const next = { ...prev };
-        Object.keys(next).forEach(trackId => {
-          if (now - next[trackId].lastSeen > 1000) {
-            delete next[trackId];
-          }
-        });
-        return next;
-      });
     }, 1000);
     
     return () => clearInterval(interval);
@@ -82,107 +67,103 @@ function App() {
   const handleFrameData = (data) => {
     setFramesReceived(prev => prev + 1);
     framesCountRef.current += 1;
+    setLatestFrame(data);
     
-    if (data.latency_ms) {
+    if (data.latency_ms !== undefined) {
       setLatency(data.latency_ms);
     }
     
-    // Update active tracks for bounding boxes
-    setActiveTracks(prev => ({
-      ...prev,
-      [data.track_id]: {
-        ...data,
-        lastSeen: Date.now()
-      }
-    }));
-    
-    // Update recent tracks history panel (keep last 10 unique)
-    setRecentTracks(prev => {
-      const exists = prev.find(t => t.track_id === data.track_id);
-      if (!exists) {
-        return [{...data, firstSeen: new Date().toLocaleTimeString()}, ...prev].slice(0, 10);
-      }
-      return prev;
-    });
+    // Extract unique track IDs from the payload
+    if (data.track_ids && data.track_ids.length > 0) {
+      setRecentTracks(prev => {
+        const newTracks = [...prev];
+        data.track_ids.forEach(id => {
+          if (!newTracks.find(t => t.track_id === id)) {
+            newTracks.unshift({ track_id: id, firstSeen: new Date().toLocaleTimeString(), camera_id: 'cam_1' });
+          }
+        });
+        return newTracks.slice(0, 10);
+      });
+    }
+  };
+
+  const handleIntentChange = (intent) => {
+    // If the intent suggests tracking a specific person, we could highlight them
+    if (intent && intent.type === 'track' && intent.target_id) {
+      setActiveTrackId(intent.target_id);
+    }
   };
 
   return (
     <div className="dashboard-container">
       {/* LEFT PANEL - Live Stream */}
-      <div className="stream-panel glass-panel">
+      <div className="stream-panel glass-panel" style={{ flex: 2 }}>
         <div className="stream-header">
           <div className="stream-title-group">
             <Camera className="text-accent" size={24} />
             <h2 className="stream-title">Live Camera Feed</h2>
             {isConnected && <div className="live-indicator" />}
           </div>
-          <div className="fps-badge">
-            {fps} FPS
+          <div className="flex gap-4">
+            <div className="fps-badge">
+              {fps} FPS
+            </div>
+            <div className="latency-badge" style={{
+              background: 'rgba(245, 158, 11, 0.15)',
+              color: 'var(--warning)',
+              padding: '0.25rem 0.75rem',
+              borderRadius: 'var(--radius-sm)',
+              fontFamily: '"Outfit", sans-serif',
+              fontWeight: 600,
+              fontSize: '0.875rem',
+              border: '1px solid rgba(245, 158, 11, 0.3)'
+            }}>
+              {latency} ms
+            </div>
           </div>
         </div>
         
-        <VideoPlayer activeTracks={activeTracks} isConnected={isConnected} />
+        <VideoPlayer 
+          latestFrame={latestFrame} 
+          isConnected={isConnected} 
+          activeTrackId={activeTrackId} 
+        />
       </div>
 
-      {/* RIGHT PANEL - Analytics */}
-      <div className="analytics-panel">
+      {/* RIGHT PANEL - Analytics & Chat */}
+      <div className="analytics-panel" style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '1rem', width: 'auto', minWidth: '400px' }}>
         
-        {/* System Status */}
-        <div className="status-card glass-panel">
-          <div className="status-header">
-            <Activity size={20} />
-            <h3>System Status</h3>
-          </div>
-          
-          <div className="status-metric">
-            <span className="metric-label">Connection</span>
-            <span className={`metric-value ${isConnected ? 'connected' : 'disconnected'}`}>
-              {isConnected ? <span className="flex items-center gap-2"><Wifi size={16} /> Online</span> : <span className="flex items-center gap-2"><WifiOff size={16} /> Offline</span>}
-            </span>
-          </div>
-          
-          <div className="status-metric">
-            <span className="metric-label">Active Tracks</span>
-            <span className="metric-value">{Object.keys(activeTracks).length}</span>
-          </div>
-          
-          <div className="status-metric">
-            <span className="metric-label">Total Frames</span>
-            <span className="metric-value">{framesReceived.toLocaleString()}</span>
-          </div>
-
-          <div className="status-metric">
-            <span className="metric-label">Pipeline Latency</span>
-            <span className="metric-value">{latency.toFixed(1)} ms</span>
-          </div>
-        </div>
+        {/* Chat Interface */}
+        <ChatPanel onIntentChange={handleIntentChange} />
 
         {/* Recent Detections */}
-        <div className="recent-tracks glass-panel">
+        <div className="recent-tracks glass-panel" style={{ flex: 1, display: 'flex', flexDirection: 'column', maxHeight: '40%' }}>
           <div className="status-header">
             <Cpu size={20} />
-            <h3>Recent Detections</h3>
+            <h3>Detection Logs</h3>
           </div>
           
-          {recentTracks.map((track, idx) => (
-            <div key={`${track.track_id}-${idx}`} className="track-item">
-              <div className="track-avatar">
-                {track.track_id}
-              </div>
-              <div className="track-details">
-                <div className="track-id">Person #{track.track_id}</div>
-                <div className="track-meta">
-                  <span>{track.camera_id}</span> • <span>{track.firstSeen}</span>
+          <div style={{ flex: 1, overflowY: 'auto', paddingRight: '0.5rem', marginTop: '1rem' }}>
+            {recentTracks.map((track, idx) => (
+              <div key={`${track.track_id}-${idx}`} className="track-item" style={{ marginBottom: '0.75rem' }}>
+                <div className="track-avatar">
+                  {track.track_id}
+                </div>
+                <div className="track-details">
+                  <div className="track-id">Person #{track.track_id}</div>
+                  <div className="track-meta">
+                    <span>{track.camera_id}</span> • <span>{track.firstSeen}</span>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
-          
-          {recentTracks.length === 0 && (
-            <div className="text-center text-secondary py-4" style={{ color: 'var(--text-secondary)' }}>
-              No tracks detected yet.
-            </div>
-          )}
+            ))}
+            
+            {recentTracks.length === 0 && (
+              <div className="text-center text-secondary py-4" style={{ color: 'var(--text-secondary)' }}>
+                No tracks detected yet.
+              </div>
+            )}
+          </div>
         </div>
 
       </div>
