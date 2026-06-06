@@ -26,6 +26,7 @@ from app.services.embedder import SigLIPEmbeddingService
 from app.services.database import QdrantService
 from backend.storage.trajectory_store import TrajectoryStore
 from backend.reid.reid_engine import ReIDEngine
+from backend.streaming.color_engine import ColorEngine
 
 logger = get_logger(__name__)
 
@@ -63,6 +64,7 @@ class StreamingPipelineConsumer:
         self.qdrant: QdrantService | None = None
         self.trajectory_store: TrajectoryStore | None = None
         self.reid: ReIDEngine | None = None
+        self.color_engine: ColorEngine | None = None
 
     def _init_services(self) -> None:
         """Initialize ML models and database connections."""
@@ -84,6 +86,12 @@ class StreamingPipelineConsumer:
         except Exception as e:
             logger.warning(f"ReIDEngine failed to initialize: {e}. Will proceed without ReID.")
             self.reid = None
+
+        try:
+            self.color_engine = ColorEngine()
+        except Exception as e:
+            logger.warning(f"ColorEngine failed to initialize: {e}")
+            self.color_engine = None
             
         logger.info("Services initialized successfully.")
 
@@ -163,6 +171,13 @@ class StreamingPipelineConsumer:
                 reid_emb = self.reid.extract_features(image)
                 # In a full system, we'd save this to a ReID specific gallery in Redis/Qdrant
                 logger.debug("Extracted ReID features", extra={"track_id": track_id})
+                
+                if self.color_engine:
+                    self.color_engine.assign_identity(
+                        track_id=track_id,
+                        reid_emb=reid_emb,
+                        camera_source=camera_id
+                    )
 
         except Exception as e:
             logger.error("Failed to process event image", extra={"error": str(e), "track_id": track_id})

@@ -29,6 +29,14 @@ class IntentClassification(BaseModel):
     ] = Field(
         description="The appropriate tool to use based on the user's query."
     )
+    target_id: int | None = Field(
+        default=None,
+        description="If the user asks about a specific person or track ID (e.g. 'person 42'), extract that integer."
+    )
+    type: str = Field(
+        default="search",
+        description="Set to 'track' if the user is asking to track or find a specific person ID, otherwise 'search'."
+    )
 
 
 def get_supervisor_prompt() -> ChatPromptTemplate:
@@ -70,6 +78,8 @@ def supervisor_node(state: AgentState) -> Dict[str, Any]:
     return {
         "parsed_intent": {
             "selected_tool": result.selected_tool,
-            "reasoning_trace": result.reasoning_trace
+            "reasoning_trace": result.reasoning_trace,
+            "target_id": result.target_id,
+            "type": result.type
         }
     }

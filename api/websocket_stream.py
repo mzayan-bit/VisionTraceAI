@@ -14,8 +14,11 @@ from confluent_kafka import Consumer
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 from app.utils.logger import get_logger
+from backend.streaming.color_engine import ColorEngine
 
 logger = get_logger(__name__)
+
+color_engine = ColorEngine()
 
 ws_router = APIRouter()
 
@@ -99,16 +102,23 @@ class ConnectionManager:
         # Assuming the frame is already base64 encoded by the producer.
         # Format payload: { frame: base64, detections: [], track_ids: [], latency_ms: X, fps: 30 }
 
+        track_id = message.get("track_id")
+        color = None
+        if track_id is not None:
+            color = color_engine.get_track_color(track_id)
+
         payload = {
             "frame": message.get("frame", ""),
             "detections": [message.get("bbox")] if message.get("bbox") else [],
-            "track_ids": [message.get("track_id")] if message.get("track_id") is not None else [],
+            "track_ids": [track_id] if track_id is not None else [],
+            "colors": [color] if color is not None else [],
             "latency_ms": message["latency_ms"],
             "fps": TARGET_FPS,
             # include other metadata for React App
-            "track_id": message.get("track_id"),
+            "track_id": track_id,
             "bbox": message.get("bbox"),
             "camera_id": message.get("camera_id"),
+            "color": color,
         }
 
         for ws in list(self.active_connections):

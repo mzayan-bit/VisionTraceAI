@@ -50,13 +50,16 @@ const VideoPlayer = ({ latestFrame, isConnected, activeTrackId }) => {
       // Ensure boxes exist
       const detections = latestFrame?.detections || [];
       const track_ids = latestFrame?.track_ids || [];
+      const colors_array = latestFrame?.colors || [];
 
       // Update target interpolations
       const currentTargets = {};
+      const currentColors = {};
       detections.forEach((bbox, idx) => {
         const track_id = track_ids[idx];
         if (track_id === undefined) return;
         currentTargets[track_id] = bbox;
+        currentColors[track_id] = colors_array[idx] || COLORS[track_id % COLORS.length];
       });
 
       // Remove stale boxes
@@ -85,7 +88,11 @@ const VideoPlayer = ({ latestFrame, isConnected, activeTrackId }) => {
         }
         interpolatedBoxesRef.current[track_id] = currentBox;
 
-        const color = isActive ? '#ffffff' : COLORS[track_id % COLORS.length];
+        const baseColor = currentColors[track_id];
+        const color = isActive ? '#ef4444' : baseColor; // Highlight in red
+        
+        // Fade inactive tracks
+        ctx.globalAlpha = (activeTrackId !== null && !isActive) ? 0.3 : 1.0;
 
         const x = currentBox.x1 * scaleX;
         const y = currentBox.y1 * scaleY;
@@ -119,9 +126,12 @@ const VideoPlayer = ({ latestFrame, isConnected, activeTrackId }) => {
         ctx.fill();
 
         // 4. Label text
-        ctx.fillStyle = isActive ? '#000000' : '#ffffff';
+        ctx.fillStyle = isActive ? '#ffffff' : '#ffffff';
         ctx.font = '600 13px "Outfit", sans-serif';
         ctx.fillText(`ID: ${track_id}`, x + 8, y - 8);
+        
+        // Reset alpha
+        ctx.globalAlpha = 1.0;
       });
 
       // Synchronize with display refresh rate
