@@ -25,9 +25,13 @@ Usage::
 
 from __future__ import annotations
 
+import base64
 import json
 import time as _time
 from typing import Any
+
+import cv2
+import numpy as np
 
 from app.utils.logger import get_logger
 
@@ -174,6 +178,7 @@ class TrackingEventProducer:
         timestamp: float,
         confidence: float = 0.0,
         extra_payload: dict[str, Any] | None = None,
+        frame: np.ndarray | None = None,
     ) -> None:
         """Publish a single tracking event to Kafka.
 
@@ -201,6 +206,12 @@ class TrackingEventProducer:
 
         if extra_payload:
             event["metadata"] = extra_payload
+
+        if frame is not None:
+            encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 75]
+            success, encoded_image = cv2.imencode('.jpg', frame, encode_param)
+            if success:
+                event["frame"] = base64.b64encode(encoded_image).decode('utf-8')
 
         # Use camera_id as the partition key so all events from the same
         # camera land on the same partition (preserving ordering).
@@ -257,6 +268,7 @@ class TrackingEventProducer:
                 camera_id=event["camera_id"],
                 timestamp=event["timestamp"],
                 confidence=event.get("confidence", 0.0),
+                frame=event.get("frame"),
             )
             count += 1
         return count

@@ -3,16 +3,16 @@ VisionTraceAI — FastAPI Core Backend.
 """
 
 import time
-from typing import Any, Dict
+from typing import Any
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
+from api.websocket_stream import ws_router
 from app.config.settings import get_settings
-from backend.agent.executor import VisionAgentExecutor
 from app.utils.logger import get_logger
-from api.websocket import ws_router
+from backend.agent.executor import VisionAgentExecutor
 
 logger = get_logger(__name__)
 
@@ -59,7 +59,7 @@ class ChatRequest(BaseModel):
 
 class ChatResponse(BaseModel):
     query: str
-    intent: Dict[str, Any]
+    intent: dict[str, Any]
     final_answer: str
     raw_results: list[Any]
     processing_time_sec: float
@@ -90,17 +90,17 @@ async def chat_endpoint(request: ChatRequest) -> ChatResponse:
     Process a natural language query through the LangGraph reasoning agent.
     """
     logger.info("Received chat query", extra={"query": request.query})
-    
+
     start_time = time.time()
     try:
         executor = get_agent_executor()
         # The executor.execute call is synchronous, so it will block the thread.
         # In a high-concurrency production env, we could use `run_in_threadpool`.
         result = executor.execute(request.query)
-        
+
         elapsed = time.time() - start_time
         logger.info("Chat query processed", extra={"elapsed_sec": elapsed})
-        
+
         return ChatResponse(
             query=result.get("query", request.query),
             intent=result.get("intent", {}),
