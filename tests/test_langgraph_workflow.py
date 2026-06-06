@@ -29,7 +29,7 @@ def test_route_query():
     assert route_query(state_fallback) == "search_visuals_node"
 
 
-@patch("backend.agent.graph.supervisor.ChatOpenAI")
+@patch("backend.agent.graph.supervisor.ChatGoogleGenerativeAI")
 @patch("backend.agent.graph.workflow.search_timeline")
 @patch("backend.agent.graph.workflow.search_visuals")
 def test_timeline_to_visual_flow(mock_visuals, mock_timeline, mock_chat_openai):
@@ -89,7 +89,7 @@ def test_timeline_to_visual_flow(mock_visuals, mock_timeline, mock_chat_openai):
     assert visual_out["result"][0]["track_id"] == 42
 
 
-@patch("backend.agent.graph.supervisor.ChatOpenAI")
+@patch("backend.agent.graph.supervisor.ChatGoogleGenerativeAI")
 @patch("backend.agent.graph.workflow.find_custom_object")
 def test_custom_object_flow(mock_custom, mock_chat_openai):
     """Test the execution sequence: supervisor -> custom object -> END."""

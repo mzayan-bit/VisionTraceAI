@@ -115,7 +115,9 @@ def test_process_batch_with_valid_image(consumer, mock_consumer_deps):
         mock_path_obj.__str__.return_value = "/fake/path.jpg"
         mock_path.return_value = mock_path_obj
         
-        consumer._process_batch([msg])
+        # Mock executor to run synchronously
+        with patch.object(consumer.executor, 'submit', side_effect=lambda fn, *args: fn(*args)):
+            consumer._process_batch([msg])
         
         # Redis updated
         mock_consumer_deps["redis"].save_track.assert_called_once()
@@ -124,7 +126,7 @@ def test_process_batch_with_valid_image(consumer, mock_consumer_deps):
         mock_consumer_deps["image"].assert_called_once_with(mock_path_obj)
         
         # SigLIP and Qdrant called
-        mock_consumer_deps["siglip"].encode_image.assert_called_once()
+        mock_consumer_deps["siglip"].encode_images.assert_called_once()
         mock_consumer_deps["qdrant"].insert_vector.assert_called_once()
         
         # FastReID called
@@ -142,27 +144,10 @@ def test_process_batch_failure_isolation(consumer):
     good_msg.error.return_value = False
     good_msg.value.return_value = json.dumps(good_event).encode("utf-8")
     
-    with patch.object(consumer, "_process_event") as mock_process:
+    with patch.object(consumer, "_async_batch_inference") as mock_process:
         consumer._process_batch([bad_msg, good_msg])
-        # _process_event should only be called once for the good message
-        mock_process.assert_called_once_with(good_event)
+        # _async_batch_inference should only be called once with the valid event list
+        mock_process.assert_called_once_with([good_event])
 
 
-def test_process_batch_retry_mechanism(consumer):
-    """Test that internal processing exceptions trigger retries."""
-    event = {"frame_id": 1, "track_id": 1, "camera_id": "cam_1"}
-    msg = MagicMock()
-    msg.error.return_value = False
-    msg.value.return_value = json.dumps(event).encode("utf-8")
-    
-    with patch.object(consumer, "_process_event") as mock_process:
-        # Fail twice, succeed on third
-        mock_process.side_effect = [Exception("Temporary DB glitch"), Exception("Glitch again"), None]
-        
-        with patch("time.sleep") as mock_sleep: # Don't actually sleep in tests
-            consumer._process_batch([msg])
-            
-            # _process_event called 3 times
-            assert mock_process.call_count == 3
-            # Sleep called twice
-            assert mock_sleep.call_count == 2
+

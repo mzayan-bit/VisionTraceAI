@@ -24,7 +24,7 @@ def mock_agent_state() -> AgentState:
     }
 
 
-@patch("backend.agent.graph.supervisor.ChatOpenAI")
+@patch("backend.agent.graph.supervisor.ChatGoogleGenerativeAI")
 def test_supervisor_node_routes_to_timeline(mock_chat_openai, mock_agent_state):
     """Test that the supervisor parses timeline queries."""
     mock_agent_state["user_query"] = "between 5 and 6pm"
@@ -47,7 +47,7 @@ def test_supervisor_node_routes_to_timeline(mock_chat_openai, mock_agent_state):
     assert "reasoning_trace" in result["parsed_intent"]
 
 
-@patch("backend.agent.graph.supervisor.ChatOpenAI")
+@patch("backend.agent.graph.supervisor.ChatGoogleGenerativeAI")
 def test_supervisor_node_routes_to_visuals(mock_chat_openai, mock_agent_state):
     """Test that the supervisor parses visual queries."""
     mock_agent_state["user_query"] = "person in a green shirt"
@@ -65,7 +65,7 @@ def test_supervisor_node_routes_to_visuals(mock_chat_openai, mock_agent_state):
     assert result["parsed_intent"]["selected_tool"] == "search_visuals"
 
 
-@patch("backend.agent.graph.supervisor.ChatOpenAI")
+@patch("backend.agent.graph.supervisor.ChatGoogleGenerativeAI")
 def test_supervisor_node_routes_to_custom_object(mock_chat_openai, mock_agent_state):
     """Test that the supervisor parses open vocabulary queries."""
     mock_agent_state["user_query"] = "find the fire extinguisher"
