@@ -134,6 +134,32 @@ class ConnectionManager:
                 except Exception as exc:
                     logger.error("Failed to enqueue frame", extra={"error": str(exc)})
 
+    def broadcast_agent_event(self, track_id: int | None, action: str, raw_results: list | None = None) -> None:
+        """Push an out-of-band agent intelligence event to the frontend."""
+        if not self.active_connections:
+            return
+
+        payload = {
+            "event_type": "agent_response",
+            "track_id": track_id,
+            "action": action,
+            "timestamp": time.time(),
+            "raw_results": raw_results or []
+        }
+
+        for ws in list(self.active_connections):
+            q = self.queues.get(ws)
+            if q:
+                if q.full():
+                    try:
+                        q.get_nowait()
+                    except asyncio.QueueEmpty:
+                        pass
+                try:
+                    self.loop.call_soon_threadsafe(q.put_nowait, payload)
+                except Exception as exc:
+                    logger.error("Failed to enqueue agent event", extra={"error": str(exc)})
+
 
 manager = ConnectionManager()
 kafka_thread: threading.Thread | None = None

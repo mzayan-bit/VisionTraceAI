@@ -9,7 +9,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
-from api.websocket_stream import ws_router
+from api.websocket_stream import ws_router, manager
 from app.config.settings import get_settings
 from app.utils.logger import get_logger
 from backend.agent.executor import VisionAgentExecutor
@@ -100,6 +100,16 @@ async def chat_endpoint(request: ChatRequest) -> ChatResponse:
 
         elapsed = time.time() - start_time
         logger.info("Chat query processed", extra={"elapsed_sec": elapsed})
+        
+        # Broadcast the agent event via WebSocket
+        intent = result.get("intent", {})
+        track_id = intent.get("target_id")
+        action = "highlight" if intent.get("type") == "track" else "search"
+        
+        try:
+            manager.broadcast_agent_event(track_id=track_id, action=action, raw_results=result.get("raw_results", []))
+        except Exception as e:
+            logger.error("Failed to broadcast agent event", extra={"error": str(e)})
 
         return ChatResponse(
             query=result.get("query", request.query),

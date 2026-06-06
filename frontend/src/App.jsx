@@ -28,7 +28,11 @@ function App() {
       
       ws.onmessage = (event) => {
         const data = JSON.parse(event.data);
-        handleFrameData(data);
+        if (data.event_type === 'agent_response') {
+          handleAgentEvent(data);
+        } else {
+          handleFrameData(data);
+        }
       };
       
       ws.onclose = () => {
@@ -87,11 +91,17 @@ function App() {
     }
   };
 
-  const handleIntentChange = (intent) => {
-    // If the intent suggests tracking a specific person, we could highlight them
-    if (intent && intent.type === 'track' && intent.target_id) {
-      setActiveTrackId(intent.target_id);
+  const handleAgentEvent = (data) => {
+    console.log("Received Agent Event:", data);
+    if (data.action === 'highlight' && data.track_id) {
+      setActiveTrackId(data.track_id);
+    } else {
+      setActiveTrackId(null);
     }
+  };
+
+  const handleIntentChange = (intent) => {
+    // Rely on handleAgentEvent via WebSocket for highlighting instead.
   };
 
   return (
