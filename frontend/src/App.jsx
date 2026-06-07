@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Camera, Cpu } from 'lucide-react';
+import { Camera, Cpu, Upload } from 'lucide-react';
 import VideoPlayer from './components/VideoPlayer';
 import ChatPanel from './components/ChatPanel';
 import './App.css';
@@ -15,6 +15,8 @@ function App() {
   
   const wsRef = useRef(null);
   const framesCountRef = useRef(0);
+  const fileInputRef = useRef(null);
+  const [isUploading, setIsUploading] = useState(false);
 
   // Connect to WebSocket
   useEffect(() => {
@@ -104,15 +106,71 @@ function App() {
     // Rely on handleAgentEvent via WebSocket for highlighting instead.
   };
 
+  const handleFileUpload = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const response = await fetch('http://localhost:8000/upload-video', {
+        method: 'POST',
+        body: formData,
+      });
+      const data = await response.json();
+      console.log('Upload success:', data);
+    } catch (error) {
+      console.error('Upload failed:', error);
+    } finally {
+      setIsUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
   return (
     <div className="dashboard-container">
       {/* LEFT PANEL - Live Stream */}
       <div className="stream-panel glass-panel" style={{ flex: 2 }}>
         <div className="stream-header">
-          <div className="stream-title-group">
+          <div className="stream-title-group" style={{ display: 'flex', alignItems: 'center' }}>
             <Camera className="text-accent" size={24} />
             <h2 className="stream-title">Live Camera Feed</h2>
             {isConnected && <div className="live-indicator" />}
+            
+            <input 
+              type="file" 
+              accept="video/*" 
+              ref={fileInputRef} 
+              style={{ display: 'none' }} 
+              onChange={handleFileUpload} 
+            />
+            <button 
+              className="upload-button" 
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isUploading}
+              style={{
+                marginLeft: '1rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                background: 'rgba(59, 130, 246, 0.15)',
+                color: '#3b82f6',
+                border: '1px solid rgba(59, 130, 246, 0.3)',
+                padding: '0.4rem 0.8rem',
+                borderRadius: 'var(--radius-md)',
+                fontSize: '0.875rem',
+                fontWeight: 600,
+                cursor: isUploading ? 'not-allowed' : 'pointer',
+                transition: 'all 0.2s ease'
+              }}
+            >
+              <Upload size={16} />
+              {isUploading ? 'Processing...' : 'Upload Video'}
+            </button>
           </div>
           <div className="flex gap-4">
             <div className="fps-badge">

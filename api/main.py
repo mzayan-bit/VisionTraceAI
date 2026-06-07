@@ -5,9 +5,12 @@ VisionTraceAI — FastAPI Core Backend.
 import time
 from typing import Any
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, UploadFile, File, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
+import shutil
+from pathlib import Path
+import subprocess
 
 from api.websocket_stream import ws_router, manager
 from app.config.settings import get_settings
@@ -120,4 +123,42 @@ async def chat_endpoint(request: ChatRequest) -> ChatResponse:
         )
     except Exception as exc:
         logger.error("Error processing chat query", extra={"error": str(exc)})
+        raise HTTPException(status_code=500, detail=str(exc))
+
+
+def run_tracker_background(video_path: Path):
+    """Run the tracking script as a background subprocess."""
+    try:
+        logger.info("Starting background tracker", extra={"video": str(video_path)})
+        subprocess.Popen(["uv", "run", "python", "scripts/run_tracker.py", str(video_path)])
+    except Exception as exc:
+        logger.error("Failed to start background tracker", extra={"error": str(exc)})
+
+
+@app.post("/upload-video")
+async def upload_video(background_tasks: BackgroundTasks, file: UploadFile = File(...)) -> dict[str, Any]:
+    """
+    Upload a video file and start tracking it in the background.
+    """
+    try:
+        videos_dir = Path("data/videos")
+        videos_dir.mkdir(parents=True, exist_ok=True)
+        
+        file_path = videos_dir / file.filename
+        
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+            
+        logger.info("Video uploaded successfully", extra={"uploaded_file": file.filename})
+        
+        # Start tracking in background
+        background_tasks.add_task(run_tracker_background, file_path)
+        
+        return {
+            "status": "success",
+            "message": f"Video {file.filename} uploaded and tracking started.",
+            "filename": file.filename
+        }
+    except Exception as exc:
+        logger.error("Error uploading video", extra={"error": str(exc)})
         raise HTTPException(status_code=500, detail=str(exc))

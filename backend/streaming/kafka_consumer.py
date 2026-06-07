@@ -20,6 +20,7 @@ import os
 import time
 import concurrent.futures
 from pathlib import Path
+import uuid
 from typing import Any, Dict, List
 
 from PIL import Image
@@ -87,6 +88,7 @@ class StreamingPipelineConsumer:
         # Load ReID Engine (mocked safely if fastreid is unavailable)
         try:
             self.reid = ReIDEngine()
+            self.reid.load_model()
         except Exception as e:
             logger.warning(f"ReIDEngine failed to initialize: {e}. Will proceed without ReID.")
             self.reid = None
@@ -156,7 +158,7 @@ class StreamingPipelineConsumer:
             # 3. SigLIP Embedding
             if self.embedder and self.qdrant:
                 siglip_emb = self.embedder.encode_image(image)
-                point_id = f"{camera_id}_{track_id}_{frame_id}"
+                point_id = str(uuid.uuid5(uuid.NAMESPACE_OID, f"{camera_id}_{track_id}_{frame_id}"))
                 self.qdrant.insert_vector(
                     point_id=point_id,
                     vector=siglip_emb.tolist(),
@@ -230,7 +232,7 @@ class StreamingPipelineConsumer:
                 siglip_embs = self.embedder.encode_images(images_to_embed)
                 for i, emb in enumerate(siglip_embs):
                     event = point_data[i]
-                    point_id = f"{event.get('camera_id', 'unknown')}_{event.get('track_id', -1)}_{event.get('frame_id', 0)}"
+                    point_id = str(uuid.uuid5(uuid.NAMESPACE_OID, f"{event.get('camera_id', 'unknown')}_{event.get('track_id', -1)}_{event.get('frame_id', 0)}"))
                     self.qdrant.insert_vector(
                         point_id=point_id,
                         vector=emb.tolist(),
@@ -255,7 +257,7 @@ class StreamingPipelineConsumer:
                         camera_source=event.get("camera_id", "unknown")
                     )
         except Exception as e:
-            logger.error("Batch inference failed", extra={"error": str(e)})
+            logger.error("Batch inference failed", extra={"error": str(e)}, exc_info=True)
 
     def _process_batch(self, messages: List[Any]) -> None:
         """Process a batch of Kafka messages."""
