@@ -47,14 +47,18 @@ def main() -> int:
     })
 
     from backend.storage.trajectory_store import TrajectoryStore
+    from backend.streaming.kafka_producer import TrackingEventProducer
     
     store = TrajectoryStore()
     store.connect()
     
+    producer = TrackingEventProducer()
+    producer.connect()
+    
     # Example hardcoded camera id for the script
     camera_id = "test_camera_1"
     
-    tracker = VisionTracker(trajectory_store=store, camera_id=camera_id)
+    tracker = VisionTracker(trajectory_store=store, camera_id=camera_id, kafka_producer=producer)
     try:
         tracker.initialize_model()
         result = tracker.track_video(video_path, annotated_video_path)

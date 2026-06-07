@@ -13,6 +13,8 @@ Features:
 
 from __future__ import annotations
 
+import base64
+import io
 import json
 import os
 import time
@@ -73,7 +75,7 @@ class StreamingPipelineConsumer:
         logger.info("Initializing streaming pipeline services...")
         
         self.embedder = SigLIPEmbeddingService()
-        self.embedder.load_model()
+        self.embedder.initialize()
         
         self.qdrant = QdrantService()
         self.qdrant.connect()
@@ -170,7 +172,7 @@ class StreamingPipelineConsumer:
                 
             # 4. FastReID Embedding
             if self.reid:
-                reid_emb = self.reid.extract_features(image)
+                reid_emb = self.reid.extract_embedding(image)
                 # In a full system, we'd save this to a ReID specific gallery in Redis/Qdrant
                 logger.debug("Extracted ReID features", extra={"track_id": track_id})
                 
@@ -196,14 +198,28 @@ class StreamingPipelineConsumer:
             camera_id = event.get("camera_id", "unknown")
             track_id = event.get("track_id", -1)
             frame_id = event.get("frame_id", 0)
-            crop_path = self.get_crop_path(camera_id, track_id, frame_id)
-            if crop_path.exists():
+            
+            frame_b64 = event.get("frame")
+            if frame_b64:
                 try:
-                    img = Image.open(crop_path).convert("RGB")
-                    images_to_embed.append(img)
-                    point_data.append(event)
-                except Exception:
-                    pass
+                    img_bytes = base64.b64decode(frame_b64)
+                    full_img = Image.open(io.BytesIO(img_bytes)).convert("RGB")
+                    bbox = event.get("bbox", {})
+                    if bbox and "x1" in bbox:
+                        crop = full_img.crop((bbox["x1"], bbox["y1"], bbox["x2"], bbox["y2"]))
+                        images_to_embed.append(crop)
+                        point_data.append(event)
+                except Exception as e:
+                    logger.error("Failed to decode base64 frame", extra={"error": str(e)})
+            else:
+                crop_path = self.get_crop_path(camera_id, track_id, frame_id)
+                if crop_path.exists():
+                    try:
+                        img = Image.open(crop_path).convert("RGB")
+                        images_to_embed.append(img)
+                        point_data.append(event)
+                    except Exception:
+                        pass
 
         if not images_to_embed:
             return
@@ -232,7 +248,7 @@ class StreamingPipelineConsumer:
             if self.reid and self.color_engine:
                 for i, img in enumerate(images_to_embed):
                     event = point_data[i]
-                    reid_emb = self.reid.extract_features(img)
+                    reid_emb = self.reid.extract_embedding(img)
                     self.color_engine.assign_identity(
                         track_id=event.get("track_id", -1),
                         reid_emb=reid_emb,
@@ -288,12 +304,16 @@ class StreamingPipelineConsumer:
                 self._process_batch(messages)
                 
                 # Commit offsets after successful batch processing
-                self.consumer.commit(asynchronous=False)
+                try:
+                    self.consumer.commit(asynchronous=False)
+                except Exception as e:
+                    if "No offset stored" not in str(e):
+                        logger.warning("Failed to commit offsets", extra={"error": str(e)})
                 
         except KeyboardInterrupt:
             logger.info("Consumer interrupted by user")
         except Exception as e:
-            logger.error("Consumer error", extra={"error": str(e)})
+            logger.error("Consumer error", extra={"error": str(e)}, exc_info=True)
         finally:
             self.close()
 

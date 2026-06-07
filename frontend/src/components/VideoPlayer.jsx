@@ -10,9 +10,7 @@ const COLORS = [
   '#06b6d4', // cyan
 ];
 
-// Target internal resolution
-const FRAME_WIDTH = 1920;
-const FRAME_HEIGHT = 1080;
+
 
 const VideoPlayer = ({ latestFrame, isConnected, activeTrackId }) => {
   const canvasRef = useRef(null);
@@ -39,13 +37,17 @@ const VideoPlayer = ({ latestFrame, isConnected, activeTrackId }) => {
         
         // Only draw if image is loaded to prevent flickering
         if (imageRef.current.complete && imageRef.current.naturalWidth > 0) {
+          if (canvas.width !== imageRef.current.naturalWidth) {
+             canvas.width = imageRef.current.naturalWidth;
+             canvas.height = imageRef.current.naturalHeight;
+          }
           ctx.drawImage(imageRef.current, 0, 0, canvas.width, canvas.height);
         }
       }
 
-      // Internal resolution scaling
-      const scaleX = canvas.width / FRAME_WIDTH;
-      const scaleY = canvas.height / FRAME_HEIGHT;
+      // 1:1 scaling since YOLO boxes are in original image dimensions
+      const scaleX = 1;
+      const scaleY = 1;
 
       // Ensure boxes exist
       const detections = latestFrame?.detections || [];
@@ -174,8 +176,6 @@ const VideoPlayer = ({ latestFrame, isConnected, activeTrackId }) => {
       {/* Hardware-accelerated Canvas Overlay Layer */}
       <canvas
         ref={canvasRef}
-        width={FRAME_WIDTH}
-        height={FRAME_HEIGHT}
         style={{
           position: 'absolute',
           top: 0,

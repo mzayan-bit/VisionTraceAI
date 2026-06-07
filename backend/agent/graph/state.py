@@ -5,8 +5,7 @@ Defines the LangGraph state schema for the agent orchestrator.
 """
 
 import operator
-from typing import Annotated, Any, Dict, List
-from typing_extensions import TypedDict
+from typing import Annotated, Any, Dict, List, TypedDict
 
 
 class AgentState(TypedDict):

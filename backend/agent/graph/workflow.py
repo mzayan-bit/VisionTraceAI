@@ -73,7 +73,7 @@ def route_query(state: AgentState) -> str:
 
 # ── Graph Construction ──────────────────────────────────────────────────
 
-workflow = StateGraph(AgentState)
+workflow = StateGraph(AgentState)  # type: ignore
 
 # Add Nodes
 workflow.add_node("supervisor_node", supervisor_node)

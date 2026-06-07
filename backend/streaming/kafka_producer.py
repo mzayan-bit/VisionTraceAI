@@ -208,10 +208,10 @@ class TrackingEventProducer:
             event["metadata"] = extra_payload
 
         if frame is not None:
-            encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 75]
+            encode_param = [cv2.IMWRITE_JPEG_QUALITY, 75]
             success, encoded_image = cv2.imencode('.jpg', frame, encode_param)
             if success:
-                event["frame"] = base64.b64encode(encoded_image).decode('utf-8')
+                event["frame"] = base64.b64encode(encoded_image.tobytes()).decode('utf-8')
 
         # Use camera_id as the partition key so all events from the same
         # camera land on the same partition (preserving ordering).

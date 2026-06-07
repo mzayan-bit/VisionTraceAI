@@ -132,6 +132,7 @@ class VisionTracker:
                             camera_id=self.camera_id,
                             timestamp=timestamp,
                             confidence=float(conf),
+                            frame=frame,
                         )
                     except Exception as exc:
                         logger.error("Failed to publish track to Kafka", extra={"track_id": track_id, "error": str(exc)})
