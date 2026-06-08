@@ -1,18 +1,18 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;600;800&display=swap');
 
 :root {
-  --bg-base: #0f111a;
-  --bg-surface: rgba(26, 29, 44, 0.6);
-  --bg-surface-hover: rgba(36, 40, 60, 0.8);
+  --bg-base: #030408;
+  --bg-surface: rgba(12, 14, 22, 0.5);
+  --bg-surface-hover: rgba(24, 28, 44, 0.7);
   
   --text-primary: #ffffff;
-  --text-secondary: #94a3b8;
+  --text-secondary: #8b99ae;
   --text-accent: #38bdf8;
   
-  --border-color: rgba(255, 255, 255, 0.08);
+  --border-color: rgba(255, 255, 255, 0.05);
   
-  --primary: #3b82f6;
-  --primary-glow: rgba(59, 130, 246, 0.4);
+  --primary: #38bdf8;
+  --primary-glow: rgba(56, 189, 248, 0.5);
   
   --success: #10b981;
   --danger: #ef4444;
@@ -38,8 +38,8 @@ body {
   -webkit-font-smoothing: antialiased;
   overflow: hidden; /* App is a full-screen dashboard */
   background-image: 
-    radial-gradient(circle at 15% 50%, rgba(59, 130, 246, 0.08) 0%, transparent 50%),
-    radial-gradient(circle at 85% 30%, rgba(16, 185, 129, 0.05) 0%, transparent 50%);
+    radial-gradient(circle at 10% 50%, rgba(56, 189, 248, 0.05) 0%, transparent 40%),
+    radial-gradient(circle at 90% 20%, rgba(16, 185, 129, 0.03) 0%, transparent 40%);
 }
 
 h1, h2, h3, h4, h5, h6 {

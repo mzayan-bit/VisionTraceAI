@@ -17,6 +17,8 @@ from api.websocket_stream import ws_router, manager
 from app.config.settings import get_settings
 from app.utils.logger import get_logger
 from backend.agent.executor import VisionAgentExecutor
+from backend.storage.redis_client import RedisClient
+from backend.storage.qdrant_service import QdrantService
 
 logger = get_logger(__name__)
 
@@ -71,6 +73,7 @@ class ChatResponse(BaseModel):
     final_answer: str
     raw_results: list[Any]
     processing_time_sec: float
+    system_health: float
 
 
 class HealthResponse(BaseModel):
@@ -90,6 +93,58 @@ async def health_check() -> HealthResponse:
         version=app.version,
         timestamp=time.time(),
     )
+
+
+@app.get("/admin/health")
+async def admin_health_check() -> dict[str, Any]:
+    """Detailed internal health dashboard metrics."""
+    redis_client = RedisClient()
+    qdrant_service = QdrantService()
+    
+    redis_status = "offline"
+    redis_keys = 0
+    system_fps = 0.0
+    pipeline_latency = 0.0
+    
+    try:
+        if redis_client.is_connected or redis_client.connect():
+            redis_status = "online"
+            info = redis_client.client.info("keyspace")
+            if "db0" in info:
+                redis_keys = info["db0"].get("keys", 0)
+            
+            fps_str = redis_client.get("metrics:system_fps")
+            if fps_str:
+                system_fps = float(fps_str)
+                
+            lat_str = redis_client.get("metrics:pipeline_latency")
+            if lat_str:
+                pipeline_latency = float(lat_str)
+    except Exception as e:
+        logger.error("Redis admin health check failed", extra={"error": str(e)})
+        
+    qdrant_status = "offline"
+    qdrant_points = 0
+    try:
+        qdrant_service.initialize()
+        count_res = qdrant_service.client.count(collection_name=qdrant_service.collection_name)
+        qdrant_points = count_res.count
+        qdrant_status = "online"
+    except Exception as e:
+        logger.error("Qdrant admin health check failed", extra={"error": str(e)})
+        
+    return {
+        "status": "healthy" if (redis_status == "online" and qdrant_status == "online") else "degraded",
+        "timestamp": time.time(),
+        "metrics": {
+            "system_fps": round(system_fps, 2),
+            "pipeline_latency_ms": round(pipeline_latency, 2),
+            "redis_status": redis_status,
+            "redis_total_keys": redis_keys,
+            "qdrant_status": qdrant_status,
+            "qdrant_total_vectors": qdrant_points
+        }
+    }
 
 
 @app.post("/chat", response_model=ChatResponse)
@@ -125,6 +180,7 @@ async def chat_endpoint(request: ChatRequest) -> ChatResponse:
             final_answer=result.get("final_answer", ""),
             raw_results=result.get("raw_results", []),
             processing_time_sec=elapsed,
+            system_health=result.get("system_health", 1.0)
         )
     except Exception as exc:
         logger.error("Error processing chat query", extra={"error": str(exc)})

@@ -18,6 +18,7 @@ import io
 import json
 import os
 import time
+import gc
 import concurrent.futures
 from pathlib import Path
 import uuid
@@ -297,6 +298,7 @@ class StreamingPipelineConsumer:
         logger.info("Started Kafka consumer loop")
         
         try:
+            batch_count = 0
             while self.running:
                 messages = self.consumer.consume(num_messages=self.batch_size, timeout=self.poll_timeout)
                 if not messages:
@@ -312,6 +314,10 @@ class StreamingPipelineConsumer:
                     if "No offset stored" not in str(e):
                         logger.warning("Failed to commit offsets", extra={"error": str(e)})
                 
+                batch_count += 1
+                if batch_count % 10 == 0:
+                    gc.collect()
+                    
         except KeyboardInterrupt:
             logger.info("Consumer interrupted by user")
         except Exception as e:

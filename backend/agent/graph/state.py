@@ -19,6 +19,8 @@ class AgentState(TypedDict):
         track_ids: Accumulated track IDs identified during the agent's run.
         final_answer: The final response to return to the user.
         conversation_memory: History of messages/interactions in the conversation.
+        diagnostic_logs: Logs of tool failures or warnings.
+        system_health: Confidence score (0.0 to 1.0) of system health.
     """
     user_query: str
     parsed_intent: Dict[str, Any]
@@ -31,3 +33,7 @@ class AgentState(TypedDict):
     
     # Message history to maintain conversation context
     conversation_memory: Annotated[List[Dict[str, Any]], operator.add]
+    
+    # Diagnostics
+    diagnostic_logs: Annotated[List[Dict[str, Any]], operator.add]
+    system_health: float

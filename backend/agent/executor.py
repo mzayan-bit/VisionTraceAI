@@ -95,7 +95,9 @@ class VisionAgentExecutor:
             "tool_outputs": [],
             "track_ids": [],
             "final_answer": "",
-            "conversation_memory": current_history
+            "conversation_memory": current_history,
+            "diagnostic_logs": [],
+            "system_health": 1.0
         }
         
         # Run the LangGraph application
@@ -111,5 +113,6 @@ class VisionAgentExecutor:
             "query": query,
             "intent": result_state.get("parsed_intent", {}),
             "final_answer": final_answer,
-            "raw_results": tool_outputs
+            "raw_results": tool_outputs,
+            "system_health": result_state.get("system_health", 1.0)
         }

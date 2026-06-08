@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VisionTraceAI - Internal System Health</title>
+    <style>
+        body { 
+            background: #030408; 
+            color: #8b99ae; 
+            font-family: 'Courier New', Courier, monospace; 
+            padding: 2rem; 
+            margin: 0;
+        }
+        h2 { color: #fff; border-bottom: 1px solid #333; padding-bottom: 1rem; }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin-top: 2rem;
+        }
+        .card { 
+            background: rgba(12, 14, 22, 0.8); 
+            padding: 1.5rem; 
+            border: 1px solid rgba(255, 255, 255, 0.1); 
+            border-radius: 8px; 
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+        .card h3 { margin-top: 0; color: #fff; }
+        .metric-value { font-size: 1.5rem; color: #38bdf8; font-weight: bold; margin-top: 0.5rem; }
+        .online { color: #10b981; }
+        .offline { color: #ef4444; }
+        .warning { color: #f59e0b; }
+    </style>
+</head>
+<body>
+    <h2>VISIONTRACE_AI // SYSTEM HEALTH // INTERNAL</h2>
+    <div id="metrics">Loading metrics telemetry...</div>
+    <script>
+        async function fetchHealth() {
+            try {
+                const res = await fetch('http://localhost:8000/admin/health');
+                const data = await res.json();
+                
+                const m = data.metrics;
+                document.getElementById('metrics').innerHTML = `
+                    <div style="margin-bottom: 2rem; color: #fff; font-size: 1.2rem;">
+                        System Status: <strong class="${data.status === 'healthy' ? 'online' : 'warning'}">
+                            [ ${data.status.toUpperCase()} ]
+                        </strong>
+                        <span style="font-size:0.8rem; color:#666; margin-left:1rem;">
+                            Last Sync: ${new Date(data.timestamp * 1000).toISOString()}
+                        </span>
+                    </div>
+                    
+                    <div class="grid">
+                        <div class="card">
+                            <h3>PIPELINE LATENCY</h3>
+                            <div class="metric-value ${m.pipeline_latency_ms > 200 ? 'warning' : 'online'}">
+                                ${m.pipeline_latency_ms} ms
+                            </div>
+                        </div>
+                        <div class="card">
+                            <h3>TRACKER FPS</h3>
+                            <div class="metric-value ${m.system_fps < 20 ? 'warning' : 'online'}">
+                                ${m.system_fps}
+                            </div>
+                        </div>
+                        <div class="card">
+                            <h3>REDIS CACHE</h3>
+                            <div>Status: <span class="${m.redis_status}">${m.redis_status.toUpperCase()}</span></div>
+                            <div class="metric-value">${m.redis_total_keys} keys</div>
+                        </div>
+                        <div class="card">
+                            <h3>QDRANT VECTOR DB</h3>
+                            <div>Status: <span class="${m.qdrant_status}">${m.qdrant_status.toUpperCase()}</span></div>
+                            <div class="metric-value">${m.qdrant_total_vectors} vectors</div>
+                        </div>
+                    </div>
+                `;
+            } catch (err) {
+                document.getElementById('metrics').innerHTML = `<div class="card offline"><h3>CRITICAL ERROR</h3><p>Unable to connect to API telemetry server.</p></div>`;
+            }
+        }
+        setInterval(fetchHealth, 2000);
+        fetchHealth();
+    </script>
+</body>
+</html>

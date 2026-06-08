@@ -16,19 +16,46 @@ from backend.agent.tools.search_timeline import search_timeline
 from backend.agent.tools.search_visuals import search_visuals
 
 
+def execute_with_self_healing(tool_callable, kwargs: dict, tool_name: str):
+    """
+    Self-healing wrapper for tool execution.
+    Retries once on failure, then silently degrades by returning empty results.
+    Returns: (results, diagnostic_logs_list, health_score_delta)
+    """
+    try:
+        results = tool_callable.invoke(kwargs)
+        return results, [], 0.0
+    except Exception as e:
+        try:
+            results = tool_callable.invoke(kwargs)
+            log = {"tool": tool_name, "error": str(e), "status": "retried_success"}
+            return results, [log], -0.1
+        except Exception as e2:
+            log = {"tool": tool_name, "error": str(e2), "status": "failed"}
+            return [], [log], -0.3
+
+
 def timeline_node(state: AgentState) -> Dict[str, Any]:
     """Execute timeline search based on the query."""
-    results = search_timeline.invoke({"query": state["user_query"]})
+    results, logs, health_delta = execute_with_self_healing(
+        search_timeline, {"query": state["user_query"]}, "search_timeline"
+    )
+    
+    track_ids = [r["track_id"] for r in results] if results else []
     
     return {
-        "track_ids": results,
-        "tool_outputs": [{"tool": "search_timeline", "result": results}]
+        "track_ids": track_ids,
+        "tool_outputs": [{"tool": "search_timeline", "result": results}],
+        "diagnostic_logs": logs,
+        "system_health": max(0.0, state.get("system_health", 1.0) + health_delta)
     }
 
 
 def search_visuals_node(state: AgentState) -> Dict[str, Any]:
     """Execute visual semantic search and optionally filter by timeline tracks."""
-    results = search_visuals.invoke({"query": state["user_query"]})
+    results, logs, health_delta = execute_with_self_healing(
+        search_visuals, {"query": state["user_query"]}, "search_visuals"
+    )
     
     # If the timeline node executed first, it will have populated track_ids
     # We intersect the visual search results with the temporal track_ids
@@ -38,6 +65,8 @@ def search_visuals_node(state: AgentState) -> Dict[str, Any]:
         
     return {
         "tool_outputs": [{"tool": "search_visuals", "result": results}],
+        "diagnostic_logs": logs,
+        "system_health": max(0.0, state.get("system_health", 1.0) + health_delta),
         "final_answer": f"Found {len(results)} matching visual tracks."
     }
 
@@ -45,13 +74,16 @@ def search_visuals_node(state: AgentState) -> Dict[str, Any]:
 def custom_object_node(state: AgentState) -> Dict[str, Any]:
     """Execute Grounding DINO search for unknown/custom objects."""
     # Hardcode sample video path for the MVP implementation
-    results = find_custom_object.invoke({
-        "video_path": "data/videos/sample.mp4",
-        "prompt": state["user_query"]
-    })
+    results, logs, health_delta = execute_with_self_healing(
+        find_custom_object, 
+        {"video_path": "data/videos/sample.mp4", "prompt": state["user_query"]}, 
+        "find_custom_object"
+    )
     
     return {
         "tool_outputs": [{"tool": "find_custom_object", "result": results}],
+        "diagnostic_logs": logs,
+        "system_health": max(0.0, state.get("system_health", 1.0) + health_delta),
         "final_answer": f"Found {len(results)} custom object detections."
     }
 

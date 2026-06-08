@@ -11,6 +11,8 @@ function App() {
   const [latency, setLatency] = useState(0);
   const [latestFrame, setLatestFrame] = useState(null);
   const [activeTrackId, setActiveTrackId] = useState(null);
+  const [peopleCount, setPeopleCount] = useState(0);
+  const [activityLevel, setActivityLevel] = useState('Low');
   
   const wsRef = useRef(null);
   const framesCountRef = useRef(0);
@@ -76,6 +78,16 @@ function App() {
     
     if (data.latency_ms !== undefined) {
       setLatency(data.latency_ms);
+    }
+    
+    if (data.detections) {
+      setPeopleCount(data.detections.length);
+      if (data.detections.length >= 4) setActivityLevel('High');
+      else if (data.detections.length >= 2) setActivityLevel('Medium');
+      else setActivityLevel('Low');
+    } else {
+      setPeopleCount(0);
+      setActivityLevel('Low');
     }
   };
 
@@ -171,10 +183,14 @@ function App() {
       </div>
 
       {/* RIGHT PANEL - AI Insight Layer */}
-      <div className="analytics-panel" style={{ flex: 1, display: 'flex', flexDirection: 'column', width: 'auto', minWidth: '400px' }}>
+      <div className="analytics-panel" style={{ flex: 1, display: 'flex', flexDirection: 'column', width: 'auto', minWidth: '400px', maxWidth: '450px' }}>
         
-        {/* Chat Interface */}
-        <ChatPanel onIntentChange={handleIntentChange} />
+        {/* Chat Interface / Insight Dashboard */}
+        <ChatPanel 
+          onIntentChange={handleIntentChange} 
+          peopleCount={peopleCount}
+          activityLevel={activityLevel}
+        />
 
       </div>
     </div>
