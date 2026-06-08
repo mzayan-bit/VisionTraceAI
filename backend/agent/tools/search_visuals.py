@@ -4,6 +4,7 @@ VisionTraceAI — Semantic Visual Search Tool.
 LangChain tool for the agent to semantically search visual data.
 """
 
+from pathlib import Path
 from typing import Any, Dict, List
 
 from langchain_core.tools import tool
@@ -48,6 +49,7 @@ def search_visuals(query: str, limit: int = 10) -> List[Dict[str, Any]]:
             "confidence_score": r.score,
             "camera_id": r.camera_id,
             "timestamp": r.timestamp,
+            "crop_url": f"http://localhost:8000/crops/{Path(r.crop_path).relative_to('data/crops').as_posix()}" if r.crop_path else None,
         }
         for r in results
     ]

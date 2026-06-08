@@ -11,37 +11,39 @@ from backend.agent.graph.state import AgentState
 from backend.agent.graph.workflow import app
 
 
-def format_final_answer(tool_outputs: List[Dict[str, Any]]) -> str:
+def format_final_answer(user_query: str, tool_outputs: List[Dict[str, Any]]) -> str:
     """Format a human-readable summary from accumulated tool outputs."""
     if not tool_outputs:
-        return "No results found for your query."
+        return "I couldn't find any results matching your query in the current video stream."
         
-    lines = []
-    for output in tool_outputs:
-        tool_name = output.get("tool", "unknown")
-        result = output.get("result", [])
+    try:
+        from langchain_google_genai import ChatGoogleGenerativeAI
+        from langchain_core.prompts import ChatPromptTemplate
+        import json
         
-        if tool_name == "search_timeline":
-            lines.append(f"• Found {len(result)} active tracks during the specified time period.")
-            
-        elif tool_name == "search_visuals":
-            lines.append(f"• Identified {len(result)} visual matches in the database.")
-            # Summarize top 3 matches
-            for r in result[:3]:
-                score = r.get("confidence_score", 0.0)
-                cam = r.get("camera_id", "unknown")
-                lines.append(f"  - Track {r.get('track_id')} (Camera: {cam}, Confidence: {score:.2f})")
+        llm = ChatGoogleGenerativeAI(model="gemini-3.5-flash", temperature=0.7)
+        prompt = ChatPromptTemplate.from_messages([
+            ("system", "You are VisionTraceAI, a helpful, friendly, and highly intelligent AI agent. Your job is to answer the user's query about a video stream based on the provided raw search results.\n"
+                       "IMPORTANT: For every detection you mention, you MUST include its 'crop_url' inline as an HTML image tag (e.g. `<img src=\"url\" alt=\"Track ID\" />`) so the user can see the actual cropped image of the person/object.\n"
+                       "Be conversational, direct, and helpful. Summarize the top 3-5 best matches clearly. Use the HTML images inline within your text paragraphs or bullet points."),
+            ("human", "Query: {user_query}\n\nRaw Search Results:\n{tool_outputs}")
+        ])
+        
+        # Clean up tool outputs for the prompt to avoid token bloat
+        clean_outputs = []
+        for out in tool_outputs:
+            if isinstance(out.get("result"), list):
+                # only keep top 5
+                top_results = out["result"][:5]
+                clean_outputs.append({"tool": out.get("tool"), "result": top_results})
+            else:
+                clean_outputs.append(out)
                 
-        elif tool_name == "find_custom_object":
-            lines.append(f"• Detected {len(result)} instances of the custom object.")
-            for r in result[:3]:
-                conf = r.get("confidence", 0.0)
-                lines.append(f"  - {r.get('label')} at frame {r.get('frame_index')} (Confidence: {conf:.2f})")
-                
-    if not lines:
-        return "Executed pipeline but received no matching records."
-        
-    return "\n".join(lines)
+        chain = prompt | llm
+        response = chain.invoke({"user_query": user_query, "tool_outputs": json.dumps(clean_outputs, default=str)})
+        return response.content
+    except Exception as e:
+        return f"Found matching records, but failed to generate a conversational response: {e}"
 
 
 class VisionAgentExecutor:
@@ -76,7 +78,7 @@ class VisionAgentExecutor:
         tool_outputs = result_state.get("tool_outputs", [])
         
         # Format the final answer
-        final_answer = format_final_answer(tool_outputs)
+        final_answer = format_final_answer(query, tool_outputs)
                 
         return {
             "query": query,

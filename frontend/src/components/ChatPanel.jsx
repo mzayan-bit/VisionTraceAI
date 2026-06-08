@@ -113,7 +113,14 @@ const ChatPanel = ({ onIntentChange }) => {
               lineHeight: '1.4',
               maxWidth: '80%'
             }}>
-              {msg.content}
+              {msg.role === 'user' ? (
+                msg.content
+              ) : (
+                <div 
+                  className="assistant-html-content"
+                  dangerouslySetInnerHTML={{ __html: msg.content }} 
+                />
+              )}
             </div>
           </div>
         ))}

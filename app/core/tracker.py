@@ -76,7 +76,9 @@ class VisionTracker:
             persist=True,
             verbose=False,
             device=self.device,
-            imgsz=imgsz
+            imgsz=imgsz,
+            conf=0.10,
+            iou=0.45
         )
         
         result = results[0]

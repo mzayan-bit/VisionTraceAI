@@ -6,6 +6,7 @@ import time
 from typing import Any
 
 from fastapi import FastAPI, HTTPException, UploadFile, File, BackgroundTasks
+from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 import shutil
@@ -38,6 +39,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Mount static files for crop images
+app.mount("/crops", StaticFiles(directory="data/crops"), name="crops")
 
 # Register WebSocket routes
 app.include_router(ws_router, prefix="/ws")
