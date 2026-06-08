@@ -57,18 +57,28 @@ def custom_object_node(state: AgentState) -> Dict[str, Any]:
 
 
 def route_query(state: AgentState) -> str:
-    """Determine the next node based on the supervisor's parsed intent."""
-    tool = state.get("parsed_intent", {}).get("selected_tool", "none")
-    
-    if tool == "search_timeline":
+    """Determine the next node based on the deterministic tool_chain."""
+    tool_chain = state.get("parsed_intent", {}).get("tool_chain", [])
+    if not tool_chain:
+        return END
+        
+    first_tool = tool_chain[0]
+    if first_tool == "search_timeline":
         return "timeline_node"
-    elif tool == "search_visuals":
+    elif first_tool == "search_visuals":
         return "search_visuals_node"
-    elif tool == "find_custom_object":
+    elif first_tool == "find_custom_object":
         return "custom_object_node"
-    else:
-        # Fallback for hybrid or unknown tools
+        
+    return END
+
+
+def route_after_timeline(state: AgentState) -> str:
+    """Follow the tool_chain after a timeline search."""
+    tool_chain = state.get("parsed_intent", {}).get("tool_chain", [])
+    if "search_visuals" in tool_chain:
         return "search_visuals_node"
+    return END
 
 
 # ── Graph Construction ──────────────────────────────────────────────────
@@ -87,8 +97,8 @@ workflow.set_entry_point("supervisor_node")
 # Conditional routing from supervisor
 workflow.add_conditional_edges("supervisor_node", route_query)
 
-# Linear flow: time queries filter tracks, then pass to visual search
-workflow.add_edge("timeline_node", "search_visuals_node")
+# Strictly follow the tool_chain after timeline
+workflow.add_conditional_edges("timeline_node", route_after_timeline)
 
 # Terminal edges
 workflow.add_edge("search_visuals_node", END)

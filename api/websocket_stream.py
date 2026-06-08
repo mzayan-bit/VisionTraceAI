@@ -30,7 +30,7 @@ ws_router = APIRouter()
 
 KAFKA_BROKER = "localhost:9092"
 KAFKA_TOPIC = "video-stream-topic"
-BUFFER_SIZE = 30  # Max frames in queue
+BUFFER_SIZE = 3  # Max frames in queue
 TARGET_FPS = 30
 FRAME_INTERVAL = 1.0 / TARGET_FPS
 

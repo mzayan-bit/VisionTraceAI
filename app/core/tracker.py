@@ -127,6 +127,7 @@ class VisionTracker:
                 # Publish to Kafka if a producer was provided
                 if self.kafka_producer is not None:
                     try:
+                        payload_frame = frame if frame_number % 5 == 0 else None
                         self.kafka_producer.publish_track_event(
                             frame_id=frame_number,
                             track_id=int(track_id),
@@ -134,7 +135,7 @@ class VisionTracker:
                             camera_id=self.camera_id,
                             timestamp=timestamp,
                             confidence=float(conf),
-                            frame=frame,
+                            frame=payload_frame,
                         )
                     except Exception as exc:
                         logger.error("Failed to publish track to Kafka", extra={"track_id": track_id, "error": str(exc)})
