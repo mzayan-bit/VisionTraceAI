@@ -66,26 +66,28 @@ const ChatPanel = ({ onIntentChange }) => {
         <Bot size={20} />
         <h3 style={{ margin: 0, marginLeft: '0.5rem' }}>AI Assistant</h3>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginLeft: 'auto' }}>
-          <button 
-            onClick={() => setIsDebugMode(!isDebugMode)}
-            title="Show Agent Reasoning"
-            style={{
-              background: isDebugMode ? 'rgba(59, 130, 246, 0.1)' : 'transparent',
-              border: `1px solid ${isDebugMode ? 'var(--primary)' : 'var(--border-color)'}`,
-              color: isDebugMode ? 'var(--primary)' : 'var(--text-secondary)',
-              borderRadius: 'var(--radius-sm)',
-              padding: '0.25rem 0.5rem',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.25rem',
-              fontSize: '0.8rem',
-              cursor: 'pointer',
-              transition: 'all 0.2s'
-            }}
-          >
-            <Bug size={14} />
-            Debug {isDebugMode ? 'ON' : 'OFF'}
-          </button>
+          {reasoning && (
+            <button 
+              onClick={() => setIsDebugMode(!isDebugMode)}
+              title="Show Evidence Drawer"
+              style={{
+                background: isDebugMode ? 'rgba(56, 189, 248, 0.1)' : 'transparent',
+                border: `1px solid ${isDebugMode ? 'var(--text-accent)' : 'var(--border-color)'}`,
+                color: isDebugMode ? 'var(--text-accent)' : 'var(--text-secondary)',
+                borderRadius: 'var(--radius-sm)',
+                padding: '0.25rem 0.5rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.25rem',
+                fontSize: '0.8rem',
+                cursor: 'pointer',
+                transition: 'all 0.2s'
+              }}
+            >
+              <BrainCircuit size={14} />
+              Evidence Drawer {isDebugMode ? '▲' : '▼'}
+            </button>
+          )}
         </div>
       </div>
       
@@ -139,28 +141,34 @@ const ChatPanel = ({ onIntentChange }) => {
 
       {isDebugMode && reasoning && (
         <div className="ai-reasoning-panel" style={{
-          padding: '0.75rem 1rem',
-          background: 'rgba(139, 92, 246, 0.1)',
-          borderTop: '1px solid rgba(139, 92, 246, 0.2)',
-          borderBottom: '1px solid rgba(139, 92, 246, 0.2)',
-          fontSize: '0.8rem',
+          padding: '1rem',
+          background: 'rgba(15, 17, 26, 0.8)',
+          backdropFilter: 'blur(10px)',
+          borderTop: '1px solid rgba(56, 189, 248, 0.2)',
+          borderBottom: '1px solid rgba(56, 189, 248, 0.2)',
+          fontSize: '0.85rem',
           color: 'var(--text-secondary)'
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem', color: '#a78bfa' }}>
-            <BrainCircuit size={14} /> <strong>Agent Reasoning ({reasoning.time?.toFixed(2)}s)</strong>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem', color: 'var(--text-accent)' }}>
+            <BrainCircuit size={16} /> <strong>Raw Evidence & Embeddings</strong>
           </div>
-          <div style={{ fontFamily: 'monospace', whiteSpace: 'pre-wrap', maxHeight: '150px', overflowY: 'auto' }}>
-            <div><strong>Intent:</strong> {JSON.stringify(reasoning.intent, null, 2)}</div>
-            {reasoning.results && reasoning.results.length > 0 && (
-              <div style={{ marginTop: '0.5rem' }}>
-                <strong>LangGraph Steps:</strong>
-                {reasoning.results.map((r, i) => (
-                  <div key={i} style={{ paddingLeft: '0.5rem', borderLeft: '2px solid #8b5cf6', margin: '0.25rem 0' }}>
-                    <span style={{ color: '#c4b5fd' }}>{r.tool}</span>: {Array.isArray(r.result) ? `${r.result.length} matches` : 'executed'}
-                  </div>
-                ))}
+          <div style={{ fontFamily: 'monospace', whiteSpace: 'pre-wrap', maxHeight: '200px', overflowY: 'auto' }}>
+            <div style={{ marginBottom: '0.5rem' }}><strong>Intent Parsed:</strong> {reasoning.intent?.intent}</div>
+            {reasoning.results && reasoning.results.map((r, i) => (
+              <div key={i} style={{ paddingLeft: '0.75rem', borderLeft: '2px solid rgba(56, 189, 248, 0.5)', margin: '0.5rem 0', background: 'rgba(255,255,255,0.02)', padding: '0.5rem' }}>
+                <span style={{ color: '#bae6fd' }}>Tool: {r.tool}</span>
+                {Array.isArray(r.result) && r.result.length > 0 && (
+                   <div style={{ marginTop: '0.25rem' }}>
+                     {r.result.map((item, j) => (
+                       <div key={j} style={{ marginLeft: '0.5rem', color: '#94a3b8' }}>
+                         • Track ID: {item.track_id || 'N/A'} | Conf: {(item.confidence_score || item.confidence || 0).toFixed(3)}
+                         {item.camera_id && ` | Cam: ${item.camera_id}`}
+                       </div>
+                     ))}
+                   </div>
+                )}
               </div>
-            )}
+            ))}
           </div>
         </div>
       )}

@@ -12,7 +12,7 @@ const COLORS = [
 
 
 
-const VideoPlayer = ({ latestFrame, isConnected, activeTrackId }) => {
+const VideoPlayer = ({ latestFrame, isConnected, activeTrackId, fps, latency }) => {
   const canvasRef = useRef(null);
   const imageRef = useRef(new Image());
   const interpolatedBoxesRef = useRef({});
@@ -116,21 +116,24 @@ const VideoPlayer = ({ latestFrame, isConnected, activeTrackId }) => {
         }
         ctx.stroke();
 
-        // 3. Label background
-        ctx.shadowBlur = 0;
-        ctx.fillStyle = color;
-        ctx.beginPath();
-        if (ctx.roundRect) {
-          ctx.roundRect(x, y - 26, 70, 26, [6, 6, 0, 0]);
-        } else {
-          ctx.rect(x, y - 26, 70, 26);
-        }
-        ctx.fill();
+        // Draw label only if active track
+        if (isActive) {
+          // 3. Label background
+          ctx.shadowBlur = 0;
+          ctx.fillStyle = color;
+          ctx.beginPath();
+          if (ctx.roundRect) {
+            ctx.roundRect(x, y - 26, 70, 26, [6, 6, 0, 0]);
+          } else {
+            ctx.rect(x, y - 26, 70, 26);
+          }
+          ctx.fill();
 
-        // 4. Label text
-        ctx.fillStyle = isActive ? '#ffffff' : '#ffffff';
-        ctx.font = '600 13px "Outfit", sans-serif';
-        ctx.fillText(`ID: ${track_id}`, x + 8, y - 8);
+          // 4. Label text
+          ctx.fillStyle = '#ffffff';
+          ctx.font = '600 13px "Outfit", sans-serif';
+          ctx.fillText(`ID: ${track_id}`, x + 8, y - 8);
+        }
         
         // Reset alpha
         ctx.globalAlpha = 1.0;
@@ -187,6 +190,44 @@ const VideoPlayer = ({ latestFrame, isConnected, activeTrackId }) => {
           zIndex: 10
         }}
       />
+      
+      {/* Minimal Metrics Overlay */}
+      <div style={{
+        position: 'absolute',
+        top: '1rem',
+        right: '1rem',
+        display: 'flex',
+        gap: '0.5rem',
+        zIndex: 20,
+        pointerEvents: 'none'
+      }}>
+        <div style={{
+          background: 'rgba(15, 17, 26, 0.7)',
+          backdropFilter: 'blur(8px)',
+          border: '1px solid rgba(255, 255, 255, 0.1)',
+          color: 'var(--text-secondary)',
+          padding: '0.25rem 0.75rem',
+          borderRadius: 'var(--radius-sm)',
+          fontFamily: '"Outfit", sans-serif',
+          fontWeight: 600,
+          fontSize: '0.8rem'
+        }}>
+          {fps || 0} FPS
+        </div>
+        <div style={{
+          background: 'rgba(245, 158, 11, 0.1)',
+          backdropFilter: 'blur(8px)',
+          border: '1px solid rgba(245, 158, 11, 0.2)',
+          color: 'var(--warning)',
+          padding: '0.25rem 0.75rem',
+          borderRadius: 'var(--radius-sm)',
+          fontFamily: '"Outfit", sans-serif',
+          fontWeight: 600,
+          fontSize: '0.8rem'
+        }}>
+          {latency || 0} ms
+        </div>
+      </div>
     </div>
   );
 };
