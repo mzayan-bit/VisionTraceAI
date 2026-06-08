@@ -9,7 +9,8 @@ from typing import List, Optional, Tuple
 
 from langchain_core.tools import tool
 
-from backend.storage.trajectory_store import TrajectoryStore
+from backend.storage.memory_layer import MemoryLayer
+from pathlib import Path
 
 
 def parse_time_query(query: str) -> Tuple[Optional[float], Optional[float]]:
@@ -52,18 +53,18 @@ def parse_time_query(query: str) -> Tuple[Optional[float], Optional[float]]:
 
 
 # Singleton store instance
-_store: TrajectoryStore | None = None
+_memory: MemoryLayer | None = None
 
-def get_trajectory_store() -> TrajectoryStore:
-    """Get or initialize the TrajectoryStore singleton."""
-    global _store
-    if _store is None:
-        _store = TrajectoryStore()
-    return _store
+def get_memory_layer() -> MemoryLayer:
+    """Get or initialize the MemoryLayer singleton."""
+    global _memory
+    if _memory is None:
+        _memory = MemoryLayer()
+    return _memory
 
 
 @tool
-def search_timeline(query: str) -> List[int]:
+def search_timeline(query: str) -> List[dict]:
     """
     Timeline search tool for querying events by time.
     
@@ -73,32 +74,20 @@ def search_timeline(query: str) -> List[int]:
         query: Natural language time query.
         
     Returns:
-        List of track IDs that were observed during the specified time period.
+        List of entity dictionaries that were observed during the specified time period.
     """
     start_time, end_time = parse_time_query(query)
     
-    store = get_trajectory_store()
-    
-    # Ensure connection to Redis
-    try:
-        store.connect()
-    except Exception:
-        pass
-        
-    try:
-        all_track_ids = store.get_all_track_ids()
-    except Exception:
-        all_track_ids = []
-        
-    filtered_track_ids = []
-    
-    for track_id in all_track_ids:
-        try:
-            # Query trajectory logs to see if track was active within the bounds
-            trajectory = store.get_trajectory(track_id, start_time, end_time)
-            if trajectory:
-                filtered_track_ids.append(track_id)
-        except Exception:
-            continue
+    memory = get_memory_layer()
+    entities = memory.query_scene(start_time, end_time)
             
-    return filtered_track_ids
+    return [
+        {
+            "track_id": e.track_id,
+            "camera_id": e.camera_id,
+            "timestamp": e.last_seen,
+            "trajectory_points": len(e.trajectory),
+            "crop_url": f"http://localhost:8000/crops/{Path(e.semantic_description.get('crop_path', '')).relative_to('data/crops').as_posix()}" if e.semantic_description.get('crop_path') else e.semantic_description.get('crop_url'),
+        }
+        for e in entities
+    ]

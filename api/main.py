@@ -62,6 +62,7 @@ def get_agent_executor() -> VisionAgentExecutor:
 # ---------------------------------------------------------------------------
 class ChatRequest(BaseModel):
     query: str = Field(..., description="User's natural language query")
+    history: list[dict[str, str]] = Field(default_factory=list, description="Conversation history")
 
 
 class ChatResponse(BaseModel):
@@ -103,7 +104,7 @@ async def chat_endpoint(request: ChatRequest) -> ChatResponse:
         executor = get_agent_executor()
         # The executor.execute call is synchronous, so it will block the thread.
         # In a high-concurrency production env, we could use `run_in_threadpool`.
-        result = executor.execute(request.query)
+        result = executor.execute(request.query, history=request.history)
 
         elapsed = time.time() - start_time
         logger.info("Chat query processed", extra={"elapsed_sec": elapsed})

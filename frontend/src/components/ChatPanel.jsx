@@ -23,6 +23,7 @@ const ChatPanel = ({ onIntentChange }) => {
     e.preventDefault();
     if (!input.trim()) return;
 
+    const history = messages.map(m => ({ role: m.role, content: m.content }));
     const userMessage = input;
     setMessages(prev => [...prev, { role: 'user', content: userMessage }]);
     setInput('');
@@ -33,7 +34,7 @@ const ChatPanel = ({ onIntentChange }) => {
       const response = await fetch('http://localhost:8000/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: userMessage })
+        body: JSON.stringify({ query: userMessage, history: history })
       });
 
       if (!response.ok) throw new Error('Network response was not ok');

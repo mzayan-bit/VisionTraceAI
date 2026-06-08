@@ -9,19 +9,19 @@ from typing import Any, Dict, List
 
 from langchain_core.tools import tool
 
-from app.services.search_engine import VisionSearchEngine
+from backend.storage.memory_layer import MemoryLayer
+from app.services.embedder import SigLIPEmbeddingService
 
-# Singleton instance to avoid reloading models on every tool call
-_search_engine: VisionSearchEngine | None = None
+_memory_layer: MemoryLayer | None = None
+_embedder: SigLIPEmbeddingService | None = None
 
-def get_search_engine() -> VisionSearchEngine:
-    """Get or initialize the search engine singleton."""
-    global _search_engine
-    if _search_engine is None:
-        _search_engine = VisionSearchEngine()
-        # Fallback to memory if Qdrant isn't running
-        _search_engine.initialize()
-    return _search_engine
+def get_memory_subsystems():
+    global _memory_layer, _embedder
+    if _memory_layer is None:
+        _memory_layer = MemoryLayer()
+        _embedder = SigLIPEmbeddingService()
+        _embedder.initialize()
+    return _memory_layer, _embedder
 
 @tool
 def search_visuals(query: str, limit: int = 10) -> List[Dict[str, Any]]:
@@ -39,17 +39,25 @@ def search_visuals(query: str, limit: int = 10) -> List[Dict[str, Any]]:
     Returns:
         A list of matching records containing track_ids, confidence scores, and camera_id metadata.
     """
-    engine = get_search_engine()
-    results = engine.search(query, limit=limit)
+    memory, embedder = get_memory_subsystems()
     
-    # Return structured dicts with the required fields
+    # 1. Embed the text query into a vector
+    augmented_query = f"a photo of {query}"
+    vector_batch = embedder.encode_text([augmented_query])
+    query_vector = vector_batch[0].tolist()
+    
+    # 2. Query Identity Memory (Qdrant -> Redis)
+    entities = memory.find_similar(query_vector, top_k=limit)
+    
+    # Return structured dicts mapped from Entities
     return [
         {
-            "track_id": r.track_id,
-            "confidence_score": r.score,
-            "camera_id": r.camera_id,
-            "timestamp": r.timestamp,
-            "crop_url": f"http://localhost:8000/crops/{Path(r.crop_path).relative_to('data/crops').as_posix()}" if r.crop_path else None,
+            "track_id": e.track_id,
+            "confidence_score": e.confidence_score,
+            "camera_id": e.camera_id,
+            "timestamp": e.last_seen,
+            "crop_url": f"http://localhost:8000/crops/{Path(e.semantic_description.get('crop_path', '')).relative_to('data/crops').as_posix()}" if e.semantic_description.get('crop_path') else e.semantic_description.get('crop_url'),
+            "trajectory_points": len(e.trajectory)
         }
-        for r in results
+        for e in entities
     ]
