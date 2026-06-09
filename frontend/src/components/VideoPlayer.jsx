@@ -34,15 +34,15 @@ const VideoPlayer = ({ latestFrame, isConnected, activeTrackId, fps, latency }) 
         if (imageRef.current.src !== `data:image/jpeg;base64,${latestFrame.frame}`) {
           imageRef.current.src = `data:image/jpeg;base64,${latestFrame.frame}`;
         }
-        
-        // Only draw if image is loaded to prevent flickering
-        if (imageRef.current.complete && imageRef.current.naturalWidth > 0) {
-          if (canvas.width !== imageRef.current.naturalWidth) {
-             canvas.width = imageRef.current.naturalWidth;
-             canvas.height = imageRef.current.naturalHeight;
-          }
-          ctx.drawImage(imageRef.current, 0, 0, canvas.width, canvas.height);
+      }
+      
+      // Always draw the cached image to prevent flickering
+      if (imageRef.current.complete && imageRef.current.naturalWidth > 0) {
+        if (canvas.width !== imageRef.current.naturalWidth) {
+           canvas.width = imageRef.current.naturalWidth;
+           canvas.height = imageRef.current.naturalHeight;
         }
+        ctx.drawImage(imageRef.current, 0, 0, canvas.width, canvas.height);
       }
 
       // 1:1 scaling since YOLO boxes are in original image dimensions

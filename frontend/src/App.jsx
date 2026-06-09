@@ -170,7 +170,6 @@ function App() {
               {isUploading ? 'Processing...' : 'Upload Video'}
             </button>
           </div>
-          </div>
         </div>
         
         <VideoPlayer 

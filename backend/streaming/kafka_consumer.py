@@ -137,11 +137,13 @@ class StreamingPipelineConsumer:
         
         # 1. Update Redis Trajectory
         if self.trajectory_store:
+            metadata = event.get("metadata", {})
             self.trajectory_store.save_track(
                 track_id=track_id,
                 camera_id=camera_id,
                 timestamp=timestamp,
                 bbox=bbox,
+                action=metadata.get("action"),
             )
 
         # 2. Check for crop image
@@ -271,15 +273,19 @@ class StreamingPipelineConsumer:
                 
             try:
                 payload = json.loads(msg.value().decode('utf-8'))
+                if payload.get("event_type") == "frame_update":
+                    continue
                 valid_events.append(payload)
                 
                 # 1. Update Redis Trajectory synchronously to ensure consistency
                 if self.trajectory_store:
+                    metadata = payload.get("metadata", {})
                     self.trajectory_store.save_track(
                         track_id=payload.get("track_id", -1),
                         camera_id=payload.get("camera_id", "unknown"),
                         timestamp=payload.get("timestamp", 0.0),
                         bbox=payload.get("bbox", {}),
+                        action=metadata.get("action"),
                     )
             except json.JSONDecodeError:
                 logger.error("Failed to decode JSON payload")

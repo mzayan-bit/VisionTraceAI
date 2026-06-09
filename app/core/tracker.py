@@ -13,6 +13,8 @@ import numpy as np
 import cv2
 from ultralytics import YOLO
 
+from backend.action.kinematics import KinematicsEngine
+
 from app.config.settings import get_settings
 from app.models.tracking import BoundingBox, FrameResult, TrackResult, VideoResult
 from app.utils.logger import get_logger
@@ -41,6 +43,8 @@ class VisionTracker:
             except Exception:
                 pass
                 
+        self.kinematics = KinematicsEngine()
+                
         self.last_metric_check = 0.0
         self.system_fps = 30.0
         self.system_latency = 0.0
@@ -68,17 +72,17 @@ class VisionTracker:
         if self.model is None:
             raise RuntimeError("Model not initialized. Call initialize_model() first.")
 
-        # classes=0 (person only), tracker="bytetrack.yaml", persist=True
+        # classes=0 (person only), tracker="botsort.yaml", persist=True
         results = self.model.track(
             frame,
             classes=[0],
-            tracker="bytetrack.yaml",
+            tracker="botsort.yaml",
             persist=True,
             verbose=False,
             device=self.device,
             imgsz=imgsz,
-            conf=0.10,
-            iou=0.45
+            conf=0.25,
+            iou=0.60
         )
         
         result = results[0]
@@ -89,7 +93,22 @@ class VisionTracker:
             track_ids = result.boxes.id.int().cpu().numpy()
             confidences = result.boxes.conf.cpu().numpy()
             
-            for box, track_id, conf in zip(boxes, track_ids, confidences):
+            # Keypoints check (will exist if using yolo11-pose)
+            keypoints_all = None
+            if hasattr(result, 'keypoints') and result.keypoints is not None and result.keypoints.xy is not None:
+                keypoints_all = result.keypoints.xy.cpu().numpy()
+            
+            all_track_ids = []
+            all_bboxes = []
+            all_confidences = []
+            
+            for i, (box, track_id, conf) in enumerate(zip(boxes, track_ids, confidences)):
+                # Extract specific keypoints for this track if available
+                action = "unknown"
+                if keypoints_all is not None and i < len(keypoints_all):
+                    kps = keypoints_all[i]  # List of [x, y]
+                    action = self.kinematics.update_and_classify(int(track_id), kps)
+                
                 bbox_obj = BoundingBox(
                     x1=float(box[0]),
                     y1=float(box[1]),
@@ -97,11 +116,11 @@ class VisionTracker:
                     y2=float(box[3])
                 )
                 
-                # Create TrackResult
                 track_res = TrackResult(
                     track_id=int(track_id),
                     confidence=float(conf),
-                    bbox=bbox_obj
+                    bbox=bbox_obj,
+                    action=action
                 )
                 tracks.append(track_res)
                 
@@ -110,9 +129,13 @@ class VisionTracker:
                     "y1": bbox_obj.y1,
                     "x2": bbox_obj.x2,
                     "y2": bbox_obj.y2,
+                    "action": action
                 }
                 
-                # Write to Redis if a store was provided
+                all_track_ids.append(int(track_id))
+                all_bboxes.append(bbox_dict)
+                all_confidences.append(float(conf))
+                
                 if self.trajectory_store is not None:
                     try:
                         self.trajectory_store.save_track(
@@ -124,10 +147,8 @@ class VisionTracker:
                     except Exception as exc:
                         logger.error("Failed to write track to Redis", extra={"track_id": track_id, "error": str(exc)})
                 
-                # Publish to Kafka if a producer was provided
                 if self.kafka_producer is not None:
                     try:
-                        payload_frame = frame if frame_number % 5 == 0 else None
                         self.kafka_producer.publish_track_event(
                             frame_id=frame_number,
                             track_id=int(track_id),
@@ -135,10 +156,27 @@ class VisionTracker:
                             camera_id=self.camera_id,
                             timestamp=timestamp,
                             confidence=float(conf),
-                            frame=payload_frame,
+                            extra_payload={"action": action},
+                            frame=None,
                         )
                     except Exception as exc:
                         logger.error("Failed to publish track to Kafka", extra={"track_id": track_id, "error": str(exc)})
+                        
+            # Publish aggregated frame event for the UI
+            if self.kafka_producer is not None and all_track_ids:
+                try:
+                    payload_frame = frame if frame_number % 5 == 0 else None
+                    self.kafka_producer.publish_frame_event(
+                        frame_id=frame_number,
+                        camera_id=self.camera_id,
+                        timestamp=timestamp,
+                        track_ids=all_track_ids,
+                        bboxes=all_bboxes,
+                        confidences=all_confidences,
+                        frame=payload_frame,
+                    )
+                except Exception as exc:
+                    logger.error("Failed to publish aggregated frame to Kafka", extra={"error": str(exc)})
                 
         annotated_frame = result.plot()
         

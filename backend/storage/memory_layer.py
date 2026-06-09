@@ -29,6 +29,7 @@ class Entity(BaseModel):
     trajectory: List[Dict[str, Any]] = Field(default_factory=list)
     semantic_description: Dict[str, Any] = Field(default_factory=dict)
     confidence_score: float = 0.0
+    action: Optional[str] = None
 
 
 class MemoryLayer:
@@ -80,7 +81,8 @@ class MemoryLayer:
                 total_observations=int(meta["total_observations"]),
                 embedding_id=embedding_id,
                 trajectory=trajectory,
-                semantic_description=semantic_description
+                semantic_description=semantic_description,
+                action=meta.get("action", "unknown")
             )
         except TrackNotFoundError:
             return None
@@ -88,7 +90,7 @@ class MemoryLayer:
             logger.error(f"Error fetching entity {track_id}", extra={"error": str(e)})
             return None
 
-    def query_scene(self, start_time: Optional[float] = None, end_time: Optional[float] = None) -> List[Entity]:
+    def query_scene(self, start_time: Optional[float] = None, end_time: Optional[float] = None, action: Optional[str] = None) -> List[Entity]:
         """
         Query Episodic Memory for all entities active within a time range.
         Currently, scans recent tracks and filters by time if provided.
@@ -108,6 +110,12 @@ class MemoryLayer:
                     continue
                 if end_time is not None and first > end_time:
                     continue
+                    
+                # Check action
+                if action is not None:
+                    track_action = track.get("action", "unknown")
+                    if track_action.lower() != action.lower():
+                        continue
                     
                 entity = self.get_entity(int(track["track_id"]))
                 if entity:

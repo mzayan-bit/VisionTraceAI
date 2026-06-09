@@ -78,14 +78,25 @@ def search_timeline(query: str) -> List[dict]:
     """
     start_time, end_time = parse_time_query(query)
     
+    # Simple keyword extraction for actions
+    action = None
+    query_lower = query.lower()
+    if "running" in query_lower:
+        action = "running"
+    elif "walking" in query_lower:
+        action = "walking"
+    elif "standing" in query_lower:
+        action = "standing"
+    
     memory = get_memory_layer()
-    entities = memory.query_scene(start_time, end_time)
+    entities = memory.query_scene(start_time, end_time, action)
             
     return [
         {
             "track_id": e.track_id,
             "camera_id": e.camera_id,
             "timestamp": e.last_seen,
+            "action": e.action,
             "trajectory_points": len(e.trajectory),
             "crop_url": f"http://localhost:8000/crops/{Path(e.semantic_description.get('crop_path', '')).relative_to('data/crops').as_posix()}" if e.semantic_description.get('crop_path') else e.semantic_description.get('crop_url'),
         }

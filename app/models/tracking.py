@@ -35,6 +35,7 @@ class TrackResult(BaseModel):
     track_id: int = Field(..., description="Persistent tracking ID")
     confidence: float = Field(..., description="Detection confidence score")
     bbox: BoundingBox = Field(..., description="Bounding box of the object")
+    action: str | None = Field(default=None, description="Inferred physical action (e.g., running, walking)")
 
 
 class FrameResult(BaseModel):

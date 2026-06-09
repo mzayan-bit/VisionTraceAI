@@ -146,6 +146,7 @@ class TrajectoryStore:
         timestamp: float,
         bbox: dict[str, float],
         embedding_id: str | None = None,
+        action: str | None = None,
     ) -> dict[str, Any]:
         """Create a new track and record its first observation.
 
@@ -182,6 +183,7 @@ class TrajectoryStore:
                 "last_seen": str(timestamp),
                 "total_observations": "1",
                 "embedding_id": embedding_id or "",
+                "action": action or "unknown",
                 "status": "active",
                 "created_at": now_iso,
                 "updated_at": now_iso,
@@ -189,10 +191,14 @@ class TrajectoryStore:
             pipe.hset(tk, mapping=meta)
         else:
             # Update existing track
-            pipe.hset(tk, mapping={
+            update_map = {
                 "last_seen": str(timestamp),
                 "updated_at": now_iso,
-            })
+            }
+            if action:
+                update_map["action"] = action
+                
+            pipe.hset(tk, mapping=update_map)
             pipe.hincrby(tk, "total_observations", 1)
             if embedding_id:
                 pipe.hset(tk, "embedding_id", embedding_id)
@@ -203,6 +209,7 @@ class TrajectoryStore:
             "camera_id": camera_id,
             "timestamp": timestamp,
             "bbox": bbox,
+            "action": action or "unknown",
             "embedding_id": embedding_id or "",
             "recorded_at": now_iso,
         })

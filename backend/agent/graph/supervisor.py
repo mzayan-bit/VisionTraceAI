@@ -5,7 +5,7 @@ Node responsible for analyzing user queries and determining which search tools
 or workflows to trigger.
 """
 
-from typing import Any, Dict, Literal, cast
+from typing import Any, Dict, Literal, cast, List
 
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_google_genai import ChatGoogleGenerativeAI

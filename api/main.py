@@ -18,7 +18,7 @@ from app.config.settings import get_settings
 from app.utils.logger import get_logger
 from backend.agent.executor import VisionAgentExecutor
 from backend.storage.redis_client import RedisClient
-from backend.storage.qdrant_service import QdrantService
+from app.services.database import QdrantService
 
 logger = get_logger(__name__)
 

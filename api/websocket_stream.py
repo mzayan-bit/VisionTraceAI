@@ -128,23 +128,19 @@ class ConnectionManager:
         # Assuming the frame is already base64 encoded by the producer.
         # Format payload: { frame: base64, detections: [], track_ids: [], latency_ms: X, fps: 30 }
 
-        track_id = message.get("track_id")
-        color = None
-        if track_id is not None:
-            color = color_engine.get_track_color(track_id)
+        track_ids = message.get("track_ids", [])
+        colors = []
+        for track_id in track_ids:
+            colors.append(color_engine.get_track_color(track_id))
 
         payload = {
             "frame": message.get("frame", ""),
-            "detections": [message.get("bbox")] if message.get("bbox") else [],
-            "track_ids": [track_id] if track_id is not None else [],
-            "colors": [color] if color is not None else [],
+            "detections": message.get("bboxes", []),
+            "track_ids": track_ids,
+            "colors": colors,
             "latency_ms": message["latency_ms"],
             "fps": TARGET_FPS,
-            # include other metadata for React App
-            "track_id": track_id,
-            "bbox": message.get("bbox"),
             "camera_id": message.get("camera_id"),
-            "color": color,
         }
 
         for ws in list(self.active_connections):
@@ -215,8 +211,9 @@ def kafka_bridge_worker() -> None:
 
             try:
                 payload = json.loads(msg.value().decode('utf-8'))
-                if manager.active_connections:
-                    manager.broadcast_sync(payload)
+                if payload.get("event_type") == "frame_update":
+                    if manager.active_connections:
+                        manager.broadcast_sync(payload)
             except json.JSONDecodeError:
                 logger.error("Failed to decode JSON from Kafka bridge")
 

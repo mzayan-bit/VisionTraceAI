@@ -246,6 +246,64 @@ class TrackingEventProducer:
             )
             raise KafkaProducerError(f"Publish failed — {exc}") from exc
 
+    def publish_frame_event(
+        self,
+        frame_id: int,
+        camera_id: str,
+        timestamp: float,
+        track_ids: list[int],
+        bboxes: list[dict[str, float]],
+        confidences: list[float],
+        frame: np.ndarray | None = None,
+    ) -> None:
+        """Publish an aggregated frame event to Kafka for the UI."""
+        producer = self._ensure_producer()
+
+        event = {
+            "event_type": "frame_update",
+            "frame_id": frame_id,
+            "camera_id": camera_id,
+            "timestamp": timestamp,
+            "track_ids": track_ids,
+            "bboxes": bboxes,
+            "confidences": confidences,
+            "produced_at": _time.time(),
+        }
+
+        if frame is not None:
+            encode_param = [cv2.IMWRITE_JPEG_QUALITY, 75]
+            success, encoded_image = cv2.imencode('.jpg', frame, encode_param)
+            if success:
+                event["frame"] = base64.b64encode(encoded_image.tobytes()).decode('utf-8')
+
+        key = camera_id.encode("utf-8")
+        value = json.dumps(event).encode("utf-8")
+
+        try:
+            producer.produce(
+                topic=self.topic,
+                key=key,
+                value=value,
+                callback=_delivery_callback,
+            )
+            producer.poll(0)
+            self._messages_sent += 1
+        except BufferError:
+            producer.flush(timeout=5)
+            producer.produce(
+                topic=self.topic,
+                key=key,
+                value=value,
+                callback=_delivery_callback,
+            )
+            self._messages_sent += 1
+        except Exception as exc:
+            logger.error(
+                "Failed to publish frame event",
+                extra={"frame_id": frame_id, "error": str(exc)},
+            )
+            raise KafkaProducerError(f"Publish failed — {exc}") from exc
+
     def publish_batch(
         self,
         events: list[dict[str, Any]],
