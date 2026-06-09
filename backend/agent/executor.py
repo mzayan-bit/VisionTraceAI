@@ -11,7 +11,7 @@ from backend.agent.graph.state import AgentState
 from backend.agent.graph.workflow import app
 
 
-def format_final_answer(user_query: str, tool_outputs: List[Dict[str, Any]], history: List[Dict[str, str]] = None) -> str:
+def format_final_answer(user_query: str, tool_outputs: List[Dict[str, Any]], history: List[Dict[str, str]] | None = None) -> str:
     """Format a human-readable summary from accumulated tool outputs."""
     if not tool_outputs:
         return "I couldn't find anything matching your description in the recent feeds."
@@ -73,7 +73,7 @@ class VisionAgentExecutor:
     def __init__(self) -> None:
         self.app = app
         
-    def execute(self, query: str, history: List[Dict[str, str]] = None) -> Dict[str, Any]:
+    def execute(self, query: str, history: List[Dict[str, str]] | None = None) -> Dict[str, Any]:
         """
         Execute the full LangGraph pipeline for a user query.
         

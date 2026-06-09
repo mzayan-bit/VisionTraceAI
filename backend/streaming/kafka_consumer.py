@@ -185,7 +185,7 @@ class StreamingPipelineConsumer:
                     
                     if self.trajectory_store:
                         tk = f"track:{track_id}"
-                        self.trajectory_store.client.hset(tk, "detected_color", result.get("detected_color", "unknown"))
+                        self.trajectory_store.redis._ensure_client().hset(tk, "detected_color", result.get("detected_color", "unknown"))
                 
             # 4. FastReID Embedding
             if self.reid:
@@ -290,7 +290,7 @@ class StreamingPipelineConsumer:
                             # Update semantic_description specifically
                             tk = f"track:{track_id}"
                             # We can just update the color manually in the hash if we want
-                            self.trajectory_store.client.hset(tk, "detected_color", result.get("detected_color", "unknown"))
+                            self.trajectory_store.redis._ensure_client().hset(tk, "detected_color", result.get("detected_color", "unknown"))
                     
             # 2. FastReID
             if self.reid and self.color_engine:
