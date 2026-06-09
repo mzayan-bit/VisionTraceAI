@@ -57,6 +57,7 @@ def search_visuals(query: str, limit: int = 10) -> List[Dict[str, Any]]:
             "camera_id": e.camera_id,
             "timestamp": e.last_seen,
             "crop_url": f"http://localhost:8000/crops/{Path(e.semantic_description.get('crop_path', '')).relative_to('data/crops').as_posix()}" if e.semantic_description.get('crop_path') else e.semantic_description.get('crop_url'),
+            "detected_color": e.detected_color,
             "trajectory_points": len(e.trajectory)
         }
         for e in entities

@@ -27,7 +27,7 @@ from typing import Any, Dict, List
 from PIL import Image
 
 from app.utils.logger import get_logger
-from app.services.embedder import SigLIPEmbeddingService
+from backend.streaming.feature_engine import FeatureEngine
 from app.services.database import QdrantService
 from backend.storage.trajectory_store import TrajectoryStore
 from backend.reid.reid_engine import ReIDEngine
@@ -66,7 +66,7 @@ class StreamingPipelineConsumer:
         self.executor = concurrent.futures.ThreadPoolExecutor(max_workers=4)
 
         # Services will be lazily initialized in connect()
-        self.embedder: SigLIPEmbeddingService | None = None
+        self.feature_engine: FeatureEngine | None = None
         self.qdrant: QdrantService | None = None
         self.trajectory_store: TrajectoryStore | None = None
         self.reid: ReIDEngine | None = None
@@ -76,8 +76,8 @@ class StreamingPipelineConsumer:
         """Initialize ML models and database connections."""
         logger.info("Initializing streaming pipeline services...")
         
-        self.embedder = SigLIPEmbeddingService()
-        self.embedder.initialize()
+        self.feature_engine = FeatureEngine()
+        self.feature_engine.initialize()
         
         self.qdrant = QdrantService()
         self.qdrant.connect()
@@ -158,22 +158,34 @@ class StreamingPipelineConsumer:
         try:
             image = Image.open(crop_path).convert("RGB")
             
-            # 3. SigLIP Embedding
-            if self.embedder and self.qdrant:
-                siglip_emb = self.embedder.encode_image(image)
-                point_id = str(uuid.uuid5(uuid.NAMESPACE_OID, f"{camera_id}_{track_id}_{frame_id}"))
-                self.qdrant.insert_vector(
-                    point_id=point_id,
-                    vector=siglip_emb.tolist(),
-                    payload={
-                        "camera_id": camera_id,
-                        "track_id": track_id,
-                        "frame_id": frame_id,
-                        "timestamp": timestamp,
-                        "bbox": bbox,
-                        "crop_path": str(crop_path)
-                    }
+            # 3. Feature Engine
+            if self.feature_engine and self.qdrant:
+                result = self.feature_engine.process_crop(
+                    track_id=track_id,
+                    timestamp=timestamp,
+                    camera_id=camera_id,
+                    cropped_image_array=image
                 )
+                
+                if result and result.get("siglip_embedding"):
+                    point_id = str(uuid.uuid5(uuid.NAMESPACE_OID, f"{camera_id}_{track_id}_{frame_id}"))
+                    self.qdrant.insert_vector(
+                        point_id=point_id,
+                        vector=result["siglip_embedding"],
+                        payload={
+                            "camera_id": camera_id,
+                            "track_id": track_id,
+                            "frame_id": frame_id,
+                            "timestamp": timestamp,
+                            "bbox": bbox,
+                            "crop_path": str(crop_path),
+                            "detected_color": result.get("detected_color", "unknown")
+                        }
+                    )
+                    
+                    if self.trajectory_store:
+                        tk = f"track:{track_id}"
+                        self.trajectory_store.client.hset(tk, "detected_color", result.get("detected_color", "unknown"))
                 
             # 4. FastReID Embedding
             if self.reid:
@@ -230,24 +242,55 @@ class StreamingPipelineConsumer:
             return
 
         try:
-            # 1. Batch SigLIP
-            if self.embedder and self.qdrant:
-                siglip_embs = self.embedder.encode_images(images_to_embed)
-                for i, emb in enumerate(siglip_embs):
+            # 1. Feature Engine (SigLIP + Zero-Shot Color)
+            if self.feature_engine and self.qdrant:
+                for i, img in enumerate(images_to_embed):
                     event = point_data[i]
-                    point_id = str(uuid.uuid5(uuid.NAMESPACE_OID, f"{event.get('camera_id', 'unknown')}_{event.get('track_id', -1)}_{event.get('frame_id', 0)}"))
-                    self.qdrant.insert_vector(
-                        point_id=point_id,
-                        vector=emb.tolist(),
-                        payload={
-                            "camera_id": event.get("camera_id", "unknown"),
-                            "track_id": event.get("track_id", -1),
-                            "frame_id": event.get("frame_id", 0),
-                            "timestamp": event.get("timestamp", 0.0),
-                            "bbox": event.get("bbox", {}),
-                            "crop_path": str(self.get_crop_path(event.get("camera_id", "unknown"), event.get("track_id", -1), event.get("frame_id", 0)))
-                        }
+                    camera_id = event.get("camera_id", "unknown")
+                    track_id = event.get("track_id", -1)
+                    frame_id = event.get("frame_id", 0)
+                    timestamp = event.get("timestamp", 0.0)
+                    bbox = event.get("bbox", {})
+                    crop_path = str(self.get_crop_path(camera_id, track_id, frame_id))
+                    
+                    # Ensure image is RGB array/PIL
+                    result = self.feature_engine.process_crop(
+                        track_id=track_id,
+                        timestamp=timestamp,
+                        camera_id=camera_id,
+                        cropped_image_array=img
                     )
+                    
+                    if result and result.get("siglip_embedding"):
+                        point_id = str(uuid.uuid5(uuid.NAMESPACE_OID, f"{camera_id}_{track_id}_{frame_id}"))
+                        self.qdrant.insert_vector(
+                            point_id=point_id,
+                            vector=result["siglip_embedding"],
+                            payload={
+                                "camera_id": camera_id,
+                                "track_id": track_id,
+                                "frame_id": frame_id,
+                                "timestamp": timestamp,
+                                "bbox": bbox,
+                                "crop_path": crop_path,
+                                "detected_color": result.get("detected_color", "unknown")
+                            }
+                        )
+                        
+                        # Update Redis trajectory metadata with the detected color!
+                        if self.trajectory_store:
+                            self.trajectory_store.save_track(
+                                track_id=track_id,
+                                camera_id=camera_id,
+                                timestamp=timestamp,
+                                bbox=bbox,
+                                embedding_id=point_id,
+                                action=event.get("metadata", {}).get("action")
+                            )
+                            # Update semantic_description specifically
+                            tk = f"track:{track_id}"
+                            # We can just update the color manually in the hash if we want
+                            self.trajectory_store.client.hset(tk, "detected_color", result.get("detected_color", "unknown"))
                     
             # 2. FastReID
             if self.reid and self.color_engine:

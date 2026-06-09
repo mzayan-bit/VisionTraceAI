@@ -30,6 +30,7 @@ class Entity(BaseModel):
     semantic_description: Dict[str, Any] = Field(default_factory=dict)
     confidence_score: float = 0.0
     action: Optional[str] = None
+    detected_color: Optional[str] = None
 
 
 class MemoryLayer:
@@ -82,7 +83,8 @@ class MemoryLayer:
                 embedding_id=embedding_id,
                 trajectory=trajectory,
                 semantic_description=semantic_description,
-                action=meta.get("action", "unknown")
+                action=meta.get("action", "unknown"),
+                detected_color=meta.get("detected_color", "unknown")
             )
         except TrackNotFoundError:
             return None
