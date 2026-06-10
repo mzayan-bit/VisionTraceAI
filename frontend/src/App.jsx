@@ -15,7 +15,6 @@ import SpatialMapViewer from './screens/SpatialMapViewer';
 
 // Deeper Intelligence Screens
 import GlobalSearch from './screens/GlobalSearch';
-import AgentReasoning from './screens/AgentReasoning';
 import AlertCenter from './screens/AlertCenter';
 import EventTimeline from './screens/EventTimeline';
 import HeatmapAnalytics from './screens/HeatmapAnalytics';
@@ -164,12 +163,7 @@ function App() {
         
       // Deeper Intelligence Screens
       case 'global-search':
-      case 'scene-intel': 
         return <GlobalSearch />;
-      case 'agent-reasoning':
-      case 'agent-memory':
-      case 'investigation':
-        return <AgentReasoning />;
       case 'alert-center':
         return <AlertCenter />;
       case 'event-timeline':
@@ -181,10 +175,8 @@ function App() {
       // Analytics & Settings Screens
       case 'kpi-dashboard':
         return <KPIDashboard mode="kpi" />;
-      case 'traffic':
-      case 'occupancy':
-      case 'trends':
-        return <KPIDashboard mode={screenId} />;
+      case 'deep-analytics':
+        return <KPIDashboard mode="deep-analytics" />;
       case 'users':
         return <EnterpriseSecurity mode="users" />;
       case 'permissions':

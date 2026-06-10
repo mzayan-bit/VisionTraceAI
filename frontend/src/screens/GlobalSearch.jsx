@@ -119,46 +119,54 @@ export default function GlobalSearch() {
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '20px', overflowY: 'auto', paddingRight: '8px' }}>
               
-              {MOCK_RESULTS.map((res, idx) => (
-                <motion.div 
-                  key={res.id}
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: idx * 0.1 }}
-                  className="glass-panel"
-                  style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', cursor: 'pointer' }}
-                  whileHover={{ y: -4, borderColor: 'var(--primary-subtle)' }}
-                >
-                  {/* Thumbnail Placeholder */}
-                  <div style={{ height: '160px', background: 'linear-gradient(45deg, #111, #1a1a1a)', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <div style={{ position: 'absolute', top: 12, left: 12, background: 'rgba(0,0,0,0.8)', padding: '4px 8px', borderRadius: '4px', fontSize: '0.7rem', color: '#fff', fontFamily: 'var(--font-mono)', border: '1px solid var(--border-color)' }}>
-                      {res.time}
-                    </div>
-                    <div style={{ position: 'absolute', top: 12, right: 12, background: 'rgba(56, 189, 248, 0.2)', color: 'var(--primary)', padding: '4px 8px', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 700, fontFamily: 'var(--font-mono)', border: '1px solid var(--primary-subtle)' }}>
-                      {res.confidence}% MATCH
-                    </div>
-                    <Crosshair size={32} color="rgba(255,255,255,0.1)" />
-                  </div>
-
-                  {/* Details */}
-                  <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)', fontFamily: 'var(--font-display)' }}>Track {res.id}</span>
-                      <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        <Camera size={14} /> {res.cam}
-                      </span>
+              {!MOCK_RESULTS || MOCK_RESULTS.length === 0 ? (
+                <div style={{ gridColumn: '1 / -1', padding: '40px', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                  <Search size={48} opacity={0.5} style={{ marginBottom: '16px' }} />
+                  <h3 style={{ margin: 0, color: 'var(--text-primary)' }}>No results found for this query.</h3>
+                  <p>Try adjusting your natural language terms.</p>
+                </div>
+              ) : (
+                MOCK_RESULTS?.map((res, idx) => (
+                  <motion.div 
+                    key={res?.id || idx}
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: idx * 0.1 }}
+                    className="glass-panel"
+                    style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', cursor: 'pointer' }}
+                    whileHover={{ y: -4, borderColor: 'var(--primary-subtle)' }}
+                  >
+                    {/* Thumbnail Placeholder */}
+                    <div style={{ height: '160px', background: 'linear-gradient(45deg, #111, #1a1a1a)', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <div style={{ position: 'absolute', top: 12, left: 12, background: 'rgba(0,0,0,0.8)', padding: '4px 8px', borderRadius: '4px', fontSize: '0.7rem', color: '#fff', fontFamily: 'var(--font-mono)', border: '1px solid var(--border-color)' }}>
+                        {res?.time || 'N/A'}
+                      </div>
+                      <div style={{ position: 'absolute', top: 12, right: 12, background: 'rgba(56, 189, 248, 0.2)', color: 'var(--primary)', padding: '4px 8px', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 700, fontFamily: 'var(--font-mono)', border: '1px solid var(--primary-subtle)' }}>
+                        {res?.confidence || 0}% MATCH
+                      </div>
+                      <Crosshair size={32} color="rgba(255,255,255,0.1)" />
                     </div>
 
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                      {res.tags.map(tag => (
-                        <div key={tag} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', fontSize: '0.75rem', padding: '4px 8px', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                          <Tag size={10} color="var(--primary)" /> {tag}
-                        </div>
-                      ))}
+                    {/* Details */}
+                    <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)', fontFamily: 'var(--font-display)' }}>Track {res?.id}</span>
+                        <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <Camera size={14} /> {res?.cam || 'Unknown'}
+                        </span>
+                      </div>
+
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                        {res?.tags?.map((tag, tIdx) => (
+                          <div key={tIdx} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', fontSize: '0.75rem', padding: '4px 8px', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <Tag size={10} color="var(--primary)" /> {tag}
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                </motion.div>
-              ))}
+                  </motion.div>
+                ))
+              )}
 
             </div>
           </motion.div>

@@ -38,13 +38,13 @@ export default function MinimalVideoNode({
         alignItems: 'center',
         justifyContent: 'center',
       }}>
-        {/* Animated noise pattern or grid to simulate a raw feed */}
-        <div style={{
-          width: '100%', height: '100%',
-          backgroundImage: 'linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px)',
-          backgroundSize: '20px 20px',
-          opacity: 0.5
-        }} />
+        <video 
+          src="/demo.mp4" 
+          autoPlay 
+          loop 
+          muted 
+          style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+        />
       </div>
 
       {/* ── Top Meta Bar ───────────────────────────────────── */}

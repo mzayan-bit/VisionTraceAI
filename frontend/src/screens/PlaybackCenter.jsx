@@ -15,8 +15,34 @@ const EVENTS = [
 export default function PlaybackCenter() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [playbackSpeed, setPlaybackSpeed] = useState(1.0);
-  const [progress, setProgress] = useState(45); // percent
+  const [progress, setProgress] = useState(0); // percent
   const [hoveredEvent, setHoveredEvent] = useState(null);
+  const videoRef = React.useRef(null);
+
+  const togglePlay = () => {
+    if (videoRef.current) {
+      if (isPlaying) {
+        videoRef.current.pause();
+      } else {
+        videoRef.current.play();
+      }
+      setIsPlaying(!isPlaying);
+    }
+  };
+
+  const handleTimeUpdate = () => {
+    if (videoRef.current) {
+      const p = (videoRef.current.currentTime / videoRef.current.duration) * 100;
+      setProgress(p || 0);
+    }
+  };
+
+  const handleSpeedChange = (speed) => {
+    setPlaybackSpeed(speed);
+    if (videoRef.current) {
+      videoRef.current.playbackRate = speed;
+    }
+  };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', gap: '20px' }}>
@@ -31,9 +57,13 @@ export default function PlaybackCenter() {
         alignItems: 'center',
         justifyContent: 'center'
       }}>
-        <div style={{ color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)' }}>
-          Historical Stream Rendering Pipeline
-        </div>
+        <video 
+          ref={videoRef}
+          src="/demo.mp4"
+          style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+          onTimeUpdate={handleTimeUpdate}
+          onEnded={() => setIsPlaying(false)}
+        />
         
         {/* Mock Top Overlay */}
         <div style={{ position: 'absolute', top: 20, left: 20, color: '#fff', fontFamily: 'var(--font-mono)', fontSize: '0.8rem', background: 'rgba(0,0,0,0.6)', padding: '4px 8px', borderRadius: '4px' }}>
@@ -108,7 +138,7 @@ export default function PlaybackCenter() {
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
             <button style={{ background: 'transparent', border: 'none', color: 'var(--text-primary)', cursor: 'pointer' }}><SkipBack size={20} /></button>
             <button 
-              onClick={() => setIsPlaying(!isPlaying)}
+              onClick={togglePlay}
               style={{ 
                 background: 'var(--primary)', border: 'none', color: '#fff', 
                 width: 48, height: 48, borderRadius: '50%', 
@@ -127,7 +157,7 @@ export default function PlaybackCenter() {
               {PLAYBACK_SPEEDS.map(speed => (
                 <button
                   key={speed}
-                  onClick={() => setPlaybackSpeed(speed)}
+                  onClick={() => handleSpeedChange(speed)}
                   style={{
                     background: playbackSpeed === speed ? 'rgba(255,255,255,0.1)' : 'transparent',
                     color: playbackSpeed === speed ? 'var(--text-primary)' : 'var(--text-secondary)',

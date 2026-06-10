@@ -28,18 +28,33 @@ const MOCK_CAMERAS = Array.from({ length: 24 }).map((_, i) => {
 const FILTERS = ['All Active Nodes', 'Perimeter Tiers', 'High-Risk Zones', 'Hardware Fault Errors'];
 
 // ─── Camera Calibration Panel (Right Drawer Content) ──────────────
-export const CameraCalibrationPanel = ({ camera }) => {
+export const CameraCalibrationPanel = ({ camera, onApplyCalibration }) => {
+  const [isSaved, setIsSaved] = useState(false);
+
+  const handleApply = () => {
+    setIsSaved(true);
+    if (onApplyCalibration) onApplyCalibration(camera.id);
+    setTimeout(() => setIsSaved(false), 2000);
+  };
+
   if (!camera) return null;
 
   return (
     <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '24px', height: '100%' }}>
-      <div style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '16px' }}>
-        <h3 style={{ margin: 0, fontFamily: 'var(--font-display)', fontSize: '1.25rem', color: 'var(--text-primary)' }}>
-          {camera.id}
-        </h3>
-        <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', fontFamily: 'var(--font-mono)', marginTop: '4px' }}>
-          {camera.ip} | {camera.host}
+      <div style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div>
+          <h3 style={{ margin: 0, fontFamily: 'var(--font-display)', fontSize: '1.25rem', color: 'var(--text-primary)' }}>
+            {camera.id}
+          </h3>
+          <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', fontFamily: 'var(--font-mono)', marginTop: '4px' }}>
+            {camera.ip} | {camera.host}
+          </div>
         </div>
+        {isSaved && (
+          <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} style={{ color: 'var(--success)', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.9rem', fontWeight: 600 }}>
+            <CheckCircle2 size={16} /> Saved!
+          </motion.div>
+        )}
       </div>
 
       {/* Sliders */}
@@ -83,7 +98,7 @@ export const CameraCalibrationPanel = ({ camera }) => {
       </div>
 
       <div style={{ marginTop: 'auto', display: 'flex', gap: '12px' }}>
-        <button style={{ flex: 1, padding: '10px', background: 'var(--primary)', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 600 }}>
+        <button onClick={handleApply} style={{ flex: 1, padding: '10px', background: 'var(--primary)', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 600 }}>
           Apply Calibration
         </button>
         <button style={{ padding: '10px', background: 'rgba(255,255,255,0.05)', color: 'var(--text-secondary)', border: '1px solid var(--border-color)', borderRadius: '6px', cursor: 'pointer' }}>
@@ -97,21 +112,26 @@ export const CameraCalibrationPanel = ({ camera }) => {
 
 // ─── Main Screen Component ──────────────────────────────────────────
 export default function CameraManagement({ setRightPanelContent }) {
+  const [cameras, setCameras] = useState(MOCK_CAMERAS);
   const [activeFilter, setActiveFilter] = useState('All Active Nodes');
   const [selectedCamera, setSelectedCamera] = useState(null);
 
   // Filter Logic
-  const filteredCameras = MOCK_CAMERAS.filter(cam => {
+  const filteredCameras = cameras.filter(cam => {
     if (activeFilter === 'Perimeter Tiers') return cam.group.includes('Perimeter');
     if (activeFilter === 'High-Risk Zones') return cam.group.includes('High-Risk');
     if (activeFilter === 'Hardware Fault Errors') return cam.status === 'OFFLINE' || cam.status === 'WARNING';
     return true;
   });
 
+  const handleApplyCalibration = (camId) => {
+    setCameras(prev => prev.map(c => c.id === camId ? { ...c, calibration: 'Aligned' } : c));
+  };
+
   const handleRowClick = (cam) => {
     setSelectedCamera(cam.id);
     // When a row is clicked, we pass the Calibration Panel back up to App to render in the right drawer
-    setRightPanelContent(<CameraCalibrationPanel camera={cam} />);
+    setRightPanelContent(<CameraCalibrationPanel camera={cam} onApplyCalibration={handleApplyCalibration} />);
   };
 
   return (

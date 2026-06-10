@@ -31,8 +31,7 @@ const NAV_GROUPS = [
   {
     label: 'Cognitive Engine',
     items: [
-      { id: 'scene-intel',     icon: Brain,       label: 'Scene Intelligence', screen: 4 },
-      { id: 'global-search',   icon: Search,      label: 'Global Search',      screen: 5 },
+      { id: 'global-search',   icon: Search,      label: 'Global Search & Intelligence', screen: 5 },
     ],
   },
   {
@@ -47,19 +46,13 @@ const NAV_GROUPS = [
     label: 'Autonomous Agents',
     items: [
       { id: 'agent-command',   icon: Bot,         label: 'Command Center',   screen: 11 },
-      { id: 'agent-memory',    icon: Database,    label: 'Agent Memory',     screen: 12 },
-      { id: 'agent-reasoning', icon: GitBranch,   label: 'Agent Reasoning',  screen: 13 },
-      { id: 'investigation',   icon: ShieldAlert, label: 'Investigation',    screen: 14 },
     ],
   },
   {
     label: 'Deep Intelligence',
     items: [
       { id: 'kpi-dashboard',   icon: BarChart3,   label: 'KPI Dashboard',    screen: 15 },
-      { id: 'heatmap',         icon: Map,         label: 'Heatmap Analytics', screen: 9 },
-      { id: 'traffic',         icon: TrendingUp,  label: 'Traffic Analytics', screen: 16 },
-      { id: 'occupancy',       icon: Users,       label: 'Occupancy',        screen: 17 },
-      { id: 'trends',          icon: Activity,    label: 'Trend Analysis',   screen: 18 },
+      { id: 'deep-analytics',  icon: Activity,    label: 'Deep Analytics',   screen: 16 },
     ],
   },
   {

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Map as MapIcon, Globe, Crosshair } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 
 // Mock Camera Nodes for the map
 const MAP_NODES = [

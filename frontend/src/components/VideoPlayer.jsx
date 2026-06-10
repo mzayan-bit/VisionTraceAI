@@ -132,6 +132,53 @@ const VideoPlayer = ({ latestFrame, isConnected, activeTrackId, fps, latency }) 
           ctx.font = '600 12px "Outfit", sans-serif';
           ctx.fillText(`TRK_${track_id}`, x + 6, y - 7);
         }
+
+        // 4. Draw YOLO-Pose Skeletons (if keypoints exist)
+        if (latestFrame?.keypoints && latestFrame.keypoints[idx]) {
+          const kpts = latestFrame.keypoints[idx];
+          
+          // Helper to draw a line between two keypoint indices
+          const drawBone = (idx1, idx2, strokeColor) => {
+            const p1 = kpts[idx1];
+            const p2 = kpts[idx2];
+            // Only draw if both points have high enough confidence (assuming format [x, y, conf])
+            if (p1 && p2 && p1[2] > 0.3 && p2[2] > 0.3) {
+              ctx.beginPath();
+              ctx.moveTo(p1[0] * scaleX, p1[1] * scaleY);
+              ctx.lineTo(p2[0] * scaleX, p2[1] * scaleY);
+              ctx.strokeStyle = strokeColor;
+              ctx.lineWidth = 2;
+              ctx.shadowBlur = 0;
+              ctx.stroke();
+            }
+          };
+
+          // Draw Connections
+          drawBone(5, 7, '#ec4899'); // Left Arm (Magenta)
+          drawBone(7, 9, '#ec4899');
+          drawBone(6, 8, '#06b6d4'); // Right Arm (Cyan)
+          drawBone(8, 10, '#06b6d4');
+          
+          drawBone(11, 13, '#ec4899'); // Left Leg
+          drawBone(13, 15, '#ec4899');
+          drawBone(12, 14, '#06b6d4'); // Right Leg
+          drawBone(14, 16, '#06b6d4');
+          
+          drawBone(5, 6, '#facc15'); // Shoulders (Yellow)
+          drawBone(11, 12, '#facc15'); // Hips
+          drawBone(5, 11, '#facc15'); // Left Torso
+          drawBone(6, 12, '#facc15'); // Right Torso
+
+          // Draw Joints
+          kpts.forEach(p => {
+            if (p && p[2] > 0.3) {
+              ctx.beginPath();
+              ctx.arc(p[0] * scaleX, p[1] * scaleY, 3, 0, 2 * Math.PI);
+              ctx.fillStyle = '#ffffff';
+              ctx.fill();
+            }
+          });
+        }
         
         // Reset alpha
         ctx.globalAlpha = 1.0;
