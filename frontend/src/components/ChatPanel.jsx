@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Send, Bot, Users, Activity, Bug, Sparkles } from 'lucide-react';
 
-const ChatPanel = ({ onIntentChange, peopleCount, activityLevel }) => {
+const ChatPanel = ({ onIntentChange, peopleCount, activityLevel, totalPeople }) => {
   const [messages, setMessages] = useState([
     { role: 'assistant', content: 'System active. Tracking environment.' }
   ]);
@@ -36,7 +36,7 @@ const ChatPanel = ({ onIntentChange, peopleCount, activityLevel }) => {
     setIsLoading(true);
 
     try {
-      const response = await fetch('http://localhost:8000/chat', {
+      const response = await fetch('http://localhost:8000/api/agent/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ query: queryText, history: history })
@@ -50,7 +50,7 @@ const ChatPanel = ({ onIntentChange, peopleCount, activityLevel }) => {
         setSystemHealth(data.system_health);
       }
       
-      setMessages(prev => [...prev, { role: 'assistant', content: data.final_answer }]);
+      setMessages(prev => [...prev, { role: 'assistant', content: data.response }]);
       
       if (data.intent && onIntentChange) {
         onIntentChange(data.intent);
@@ -86,10 +86,11 @@ const ChatPanel = ({ onIntentChange, peopleCount, activityLevel }) => {
       }}>
         <div style={{ flex: 1, background: 'rgba(255,255,255,0.03)', borderRadius: 'var(--radius-md)', padding: '1rem', border: '1px solid rgba(255,255,255,0.05)' }}>
           <div style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem', fontWeight: 600, letterSpacing: '0.5px' }}>
-            <Users size={14} /> PEOPLE COUNT
+            <Users size={14} /> LIVE / TOTAL
           </div>
-          <div style={{ fontSize: '2rem', fontFamily: '"Outfit", sans-serif', fontWeight: 600, color: 'var(--text-primary)' }}>
+          <div style={{ fontSize: '1.6rem', fontFamily: '"Outfit", sans-serif', fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'baseline', gap: '0.4rem' }}>
             {peopleCount || 0}
+            <span style={{ fontSize: '1rem', color: 'var(--text-secondary)' }}>/ {totalPeople || 0}</span>
           </div>
         </div>
 
@@ -134,7 +135,7 @@ const ChatPanel = ({ onIntentChange, peopleCount, activityLevel }) => {
         }}>
           {isLoading ? (
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-accent)' }}>
-              <span className="dot-pulse">Analyzing scene...</span>
+              <span className="dot-pulse">Agent thinking...</span>
             </div>
           ) : (
             <div 

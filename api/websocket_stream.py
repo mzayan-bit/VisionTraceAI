@@ -141,6 +141,8 @@ class ConnectionManager:
             "latency_ms": message["latency_ms"],
             "fps": TARGET_FPS,
             "camera_id": message.get("camera_id"),
+            "progress": message.get("progress", 0.0),
+            "total_people": message.get("total_people", 0),
         }
 
         for ws in list(self.active_connections):

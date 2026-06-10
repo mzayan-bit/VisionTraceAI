@@ -70,6 +70,8 @@ def main() -> int:
         logger.info("Tracking results saved to JSON", extra={"json_path": str(json_output_path)})
         
     except Exception as exc:
+        import traceback
+        traceback.print_exc()
         logger.error("Tracking failed", extra={"error": str(exc)})
         return 1
     finally:

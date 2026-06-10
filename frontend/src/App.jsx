@@ -3,6 +3,9 @@ import { Camera, Cpu, Upload } from 'lucide-react';
 import VideoPlayer from './components/VideoPlayer';
 import ChatPanel from './components/ChatPanel';
 import './App.css';
+import React from 'react';
+
+const AgentDashboard = React.lazy(() => import('./components/AgentDashboard'));
 
 function App() {
   const [isConnected, setIsConnected] = useState(false);
@@ -12,7 +15,9 @@ function App() {
   const [latestFrame, setLatestFrame] = useState(null);
   const [activeTrackId, setActiveTrackId] = useState(null);
   const [peopleCount, setPeopleCount] = useState(0);
+  const [totalPeople, setTotalPeople] = useState(0);
   const [activityLevel, setActivityLevel] = useState('Low');
+  const [showAgentDashboard, setShowAgentDashboard] = useState(false);
   
   const wsRef = useRef(null);
   const framesCountRef = useRef(0);
@@ -78,6 +83,10 @@ function App() {
     
     if (data.latency_ms !== undefined) {
       setLatency(data.latency_ms);
+    }
+    
+    if (data.total_people !== undefined) {
+      setTotalPeople(data.total_people);
     }
     
     if (data.detections) {
@@ -169,6 +178,29 @@ function App() {
               <Upload size={16} />
               {isUploading ? 'Processing...' : 'Upload Video'}
             </button>
+            <button
+              className="upload-button"
+              onClick={() => setShowAgentDashboard(true)}
+              style={{
+                marginLeft: '0.5rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(236, 72, 153, 0.15))',
+                color: '#d946ef',
+                border: '1px solid rgba(217, 70, 239, 0.3)',
+                padding: '0.4rem 0.8rem',
+                borderRadius: 'var(--radius-md)',
+                fontSize: '0.875rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+                boxShadow: '0 0 10px rgba(217, 70, 239, 0.1)'
+              }}
+            >
+              <Cpu size={16} />
+              Command Center
+            </button>
           </div>
         </div>
         
@@ -189,9 +221,21 @@ function App() {
           onIntentChange={handleIntentChange} 
           peopleCount={peopleCount}
           activityLevel={activityLevel}
+          totalPeople={totalPeople}
         />
 
       </div>
+      
+      {showAgentDashboard && (
+        <React.Suspense fallback={<div>Loading Command Center...</div>}>
+          <AgentDashboard 
+            onClose={() => setShowAgentDashboard(false)} 
+            latestFrame={latestFrame}
+            totalPeople={totalPeople}
+            runtimePeople={peopleCount}
+          />
+        </React.Suspense>
+      )}
     </div>
   );
 }

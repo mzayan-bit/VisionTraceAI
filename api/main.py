@@ -16,7 +16,7 @@ import subprocess
 from api.websocket_stream import ws_router, manager
 from app.config.settings import get_settings
 from app.utils.logger import get_logger
-from backend.agent.executor import VisionAgentExecutor
+from backend.agent.vision_agent import run_vision_agent
 from backend.storage.redis_client import RedisClient
 from app.services.database import QdrantService
 
@@ -48,15 +48,7 @@ app.mount("/crops", StaticFiles(directory="data/crops"), name="crops")
 # Register WebSocket routes
 app.include_router(ws_router, prefix="/ws")
 
-# Initialize the LangGraph agent executor lazily
-agent_executor: VisionAgentExecutor | None = None
-
-def get_agent_executor() -> VisionAgentExecutor:
-    global agent_executor
-    if agent_executor is None:
-        logger.info("Initializing VisionAgentExecutor...")
-        agent_executor = VisionAgentExecutor()
-    return agent_executor
+# Removed old VisionAgentExecutor logic
 
 
 # ---------------------------------------------------------------------------
@@ -70,7 +62,7 @@ class ChatRequest(BaseModel):
 class ChatResponse(BaseModel):
     query: str
     intent: dict[str, Any]
-    final_answer: str
+    response: str
     raw_results: list[Any]
     processing_time_sec: float
     system_health: float
@@ -95,8 +87,8 @@ async def health_check() -> HealthResponse:
     )
 
 
-@app.get("/admin/health")
-async def admin_health_check() -> dict[str, Any]:
+@app.get("/api/metrics")
+async def get_system_metrics() -> dict[str, Any]:
     """Detailed internal health dashboard metrics."""
     redis_client = RedisClient()
     qdrant_service = QdrantService()
@@ -107,11 +99,13 @@ async def admin_health_check() -> dict[str, Any]:
     pipeline_latency = 0.0
     
     try:
-        if redis_client.is_connected or redis_client.connect():
-            redis_status = "online"
-            info = redis_client.client.info("keyspace")
-            if "db0" in info:
-                redis_keys = info["db0"].get("keys", 0)
+        if not redis_client.is_connected:
+            redis_client.connect()
+            
+        redis_status = "online"
+        info = redis_client.client.info("keyspace")
+        if "db0" in info:
+            redis_keys = info["db0"].get("keys", 0)
             
             fps_str = redis_client.get("metrics:system_fps")
             if fps_str:
@@ -126,7 +120,7 @@ async def admin_health_check() -> dict[str, Any]:
     qdrant_status = "offline"
     qdrant_points = 0
     try:
-        qdrant_service.initialize()
+        qdrant_service.connect()
         count_res = qdrant_service.client.count(collection_name=qdrant_service.collection_name)
         qdrant_points = count_res.count
         qdrant_status = "online"
@@ -147,7 +141,7 @@ async def admin_health_check() -> dict[str, Any]:
     }
 
 
-@app.post("/chat", response_model=ChatResponse)
+@app.post("/api/agent/chat", response_model=ChatResponse)
 async def chat_endpoint(request: ChatRequest) -> ChatResponse:
     """
     Process a natural language query through the LangGraph reasoning agent.
@@ -156,10 +150,8 @@ async def chat_endpoint(request: ChatRequest) -> ChatResponse:
 
     start_time = time.time()
     try:
-        executor = get_agent_executor()
-        # The executor.execute call is synchronous, so it will block the thread.
-        # In a high-concurrency production env, we could use `run_in_threadpool`.
-        result = executor.execute(request.query, history=request.history)
+        # Run the new LangGraph Vision Agent
+        result = run_vision_agent(request.query, history=request.history)
 
         elapsed = time.time() - start_time
         logger.info("Chat query processed", extra={"elapsed_sec": elapsed})
@@ -177,14 +169,24 @@ async def chat_endpoint(request: ChatRequest) -> ChatResponse:
         return ChatResponse(
             query=result.get("query", request.query),
             intent=result.get("intent", {}),
-            final_answer=result.get("final_answer", ""),
+            response=result.get("final_answer", ""),
             raw_results=result.get("raw_results", []),
             processing_time_sec=elapsed,
             system_health=result.get("system_health", 1.0)
         )
     except Exception as exc:
-        logger.error("Error processing chat query", extra={"error": str(exc)})
-        raise HTTPException(status_code=500, detail=str(exc))
+        elapsed = time.time() - start_time
+        logger.error("Error processing chat query", extra={"error": str(exc)}, exc_info=True)
+        # Return a valid ChatResponse instead of HTTP 500 so the frontend
+        # displays the real error instead of generic "Unable to process request."
+        return ChatResponse(
+            query=request.query,
+            intent={},
+            response=f"Agent error: {exc}. Please check the server terminal for details.",
+            raw_results=[],
+            processing_time_sec=elapsed,
+            system_health=0.5,
+        )
 
 
 def run_tracker_background(video_path: Path):
@@ -223,3 +225,31 @@ async def upload_video(background_tasks: BackgroundTasks, file: UploadFile = Fil
     except Exception as exc:
         logger.error("Error uploading video", extra={"error": str(exc)})
         raise HTTPException(status_code=500, detail=str(exc))
+
+
+@app.get("/download-video")
+async def download_video(filename: str = None):
+    """
+    Download the processed (annotated) video.
+    If no filename is provided, returns the most recently modified video.
+    """
+    from fastapi.responses import FileResponse
+    import os
+    
+    output_dir = Path("data/outputs")
+    if not output_dir.exists():
+        raise HTTPException(status_code=404, detail="No processed videos found.")
+        
+    if filename:
+        file_path = output_dir / filename
+        if not file_path.exists():
+            raise HTTPException(status_code=404, detail="File not found.")
+        return FileResponse(path=file_path, filename=filename, media_type="video/mp4")
+        
+    # Get the latest video
+    videos = list(output_dir.glob("annotated_*.mp4"))
+    if not videos:
+        raise HTTPException(status_code=404, detail="No processed videos found.")
+        
+    latest_video = max(videos, key=os.path.getmtime)
+    return FileResponse(path=latest_video, filename=latest_video.name, media_type="video/mp4")

@@ -12,8 +12,11 @@ from pathlib import Path
 import numpy as np
 import cv2
 from ultralytics import YOLO
+import concurrent.futures
 
 from backend.action.kinematics import KinematicsEngine
+from backend.streaming.feature_engine import FeatureEngine
+from backend.storage.memory_manager import MemoryManager
 
 from app.config.settings import get_settings
 from app.models.tracking import BoundingBox, FrameResult, TrackResult, VideoResult
@@ -49,6 +52,29 @@ class VisionTracker:
         self.system_fps = 30.0
         self.system_latency = 0.0
         self.scale_cooldown_until = 0.0
+        self.seen_track_ids = set()
+        
+        # ML and Memory integration
+        self.feature_engine = FeatureEngine()
+        self.memory_manager = MemoryManager()
+        self.memory_manager.connect()
+        self.executor = concurrent.futures.ThreadPoolExecutor(max_workers=2)
+
+    def _async_embed_and_save(self, crop: np.ndarray, track_id: int, timestamp: float, camera_id: str, bbox: dict) -> None:
+        """Asynchronously process crop and save to databases without blocking the main tracker loop."""
+        try:
+            result = self.feature_engine.process_crop(
+                track_id=track_id,
+                timestamp=timestamp,
+                camera_id=camera_id,
+                cropped_image_array=crop
+            )
+            if result:
+                result["bbox"] = bbox
+                self.memory_manager.upsert_track_data(result)
+                print(f"Saved Track {track_id} to Qdrant and Redis.")
+        except Exception as e:
+            logger.error("Error in async embedding/saving", extra={"error": str(e), "track_id": track_id})
 
     def initialize_model(self) -> None:
         """Load the YOLO model."""
@@ -63,7 +89,7 @@ class VisionTracker:
             logger.error("Failed to load YOLO model", extra={"error": str(exc)})
             raise RuntimeError(f"Model initialization failed: {exc}") from exc
 
-    def track_frame(self, frame: np.ndarray, frame_number: int, timestamp: float, imgsz: int = 640) -> tuple[FrameResult, np.ndarray]:
+    def track_frame(self, frame: np.ndarray, frame_number: int, timestamp: float, imgsz: int = 640, progress: float = 0.0, total_people: int = 0) -> tuple[FrameResult, np.ndarray]:
         """Track objects in a single frame.
         
         Returns:
@@ -72,11 +98,11 @@ class VisionTracker:
         if self.model is None:
             raise RuntimeError("Model not initialized. Call initialize_model() first.")
 
-        # classes=0 (person only), tracker="botsort.yaml", persist=True
+        # classes=0 (person only), tracker="app/config/custom_bytetrack.yaml", persist=True
         results = self.model.track(
             frame,
             classes=[0],
-            tracker="botsort.yaml",
+            tracker="app/config/custom_bytetrack.yaml",
             persist=True,
             verbose=False,
             device=self.device,
@@ -136,6 +162,20 @@ class VisionTracker:
                 all_bboxes.append(bbox_dict)
                 all_confidences.append(float(conf))
                 
+                # Crop bounding box and process asynchronously
+                try:
+                    x1, y1, x2, y2 = int(box[0]), int(box[1]), int(box[2]), int(box[3])
+                    # Ensure coordinates are within frame boundaries
+                    h, w = frame.shape[:2]
+                    x1, y1 = max(0, x1), max(0, y1)
+                    x2, y2 = min(w, x2), min(h, y2)
+                    if x2 > x1 and y2 > y1:
+                        crop = frame[y1:y2, x1:x2].copy()
+                        # Pass crop and metadata to background thread
+                        self.executor.submit(self._async_embed_and_save, crop, int(track_id), float(timestamp), self.camera_id, bbox_dict)
+                except Exception as e:
+                    logger.error("Failed to crop frame for embedding", extra={"error": str(e)})
+                
                 if self.trajectory_store is not None:
                     try:
                         self.trajectory_store.save_track(
@@ -165,7 +205,7 @@ class VisionTracker:
             # Publish aggregated frame event for the UI
             if self.kafka_producer is not None and all_track_ids:
                 try:
-                    payload_frame = frame if frame_number % 5 == 0 else None
+                    payload_frame = frame  # Send every frame for smooth playback
                     self.kafka_producer.publish_frame_event(
                         frame_id=frame_number,
                         camera_id=self.camera_id,
@@ -174,6 +214,8 @@ class VisionTracker:
                         bboxes=all_bboxes,
                         confidences=all_confidences,
                         frame=payload_frame,
+                        progress=progress,
+                        total_people=total_people
                     )
                 except Exception as exc:
                     logger.error("Failed to publish aggregated frame to Kafka", extra={"error": str(exc)})
@@ -244,11 +286,18 @@ class VisionTracker:
                 # If latency > 300, use lower resolution
                 current_imgsz = 640
                 if self.system_latency > 300.0 and now > self.scale_cooldown_until:
-                    current_imgsz = 320
+                    current_imgsz = 480
                     
                 timestamp = frame_number / fps if fps > 0 else 0.0
                 
-                frame_res, annotated_frame = self.track_frame(frame, frame_number, timestamp, imgsz=current_imgsz)
+                # Track total unique people
+                progress = (frame_number / total_frames * 100) if total_frames > 0 else 0.0
+                
+                frame_res, annotated_frame = self.track_frame(frame, frame_number, timestamp, imgsz=current_imgsz, progress=progress, total_people=len(self.seen_track_ids))
+                
+                for t in frame_res.tracks:
+                    self.seen_track_ids.add(t.track_id)
+                    
                 frame_results.append(frame_res)
                 total_tracks += len(frame_res.tracks)
                 
@@ -295,5 +344,7 @@ class VisionTracker:
                 self.kafka_producer.flush(timeout=5.0)
             except Exception as exc:
                 logger.error("Failed to flush Kafka producer on shutdown", extra={"error": str(exc)})
+        
+        self.executor.shutdown(wait=False)
         self.model = None
         logger.info("VisionTracker shut down")

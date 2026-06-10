@@ -255,6 +255,8 @@ class TrackingEventProducer:
         bboxes: list[dict[str, float]],
         confidences: list[float],
         frame: np.ndarray | None = None,
+        progress: float = 0.0,
+        total_people: int = 0,
     ) -> None:
         """Publish an aggregated frame event to Kafka for the UI."""
         producer = self._ensure_producer()
@@ -268,10 +270,12 @@ class TrackingEventProducer:
             "bboxes": bboxes,
             "confidences": confidences,
             "produced_at": _time.time(),
+            "progress": progress,
+            "total_people": total_people,
         }
 
         if frame is not None:
-            encode_param = [cv2.IMWRITE_JPEG_QUALITY, 75]
+            encode_param = [cv2.IMWRITE_JPEG_QUALITY, 50]
             success, encoded_image = cv2.imencode('.jpg', frame, encode_param)
             if success:
                 event["frame"] = base64.b64encode(encoded_image.tobytes()).decode('utf-8')

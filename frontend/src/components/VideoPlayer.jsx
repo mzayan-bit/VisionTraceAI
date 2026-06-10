@@ -229,6 +229,24 @@ const VideoPlayer = ({ latestFrame, isConnected, activeTrackId, fps, latency }) 
         </div>
       </div>
       
+      {/* Progress Bar Overlay */}
+      {latestFrame?.progress !== undefined && latestFrame.progress > 0 && (
+        <div style={{
+          position: 'absolute',
+          bottom: 0, left: 0, width: '100%', height: '4px',
+          background: 'rgba(255, 255, 255, 0.1)',
+          zIndex: 30
+        }}>
+          <div style={{
+            width: `${latestFrame.progress}%`,
+            height: '100%',
+            background: 'var(--primary)',
+            boxShadow: '0 0 10px var(--primary)',
+            transition: 'width 0.2s ease-out'
+          }} />
+        </div>
+      )}
+      
       {/* Quick Actions Overlay */}
       <div style={{
         position: 'absolute',
@@ -288,6 +306,31 @@ const VideoPlayer = ({ latestFrame, isConnected, activeTrackId, fps, latency }) 
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path><path d="M12 7v5l4 2"></path></svg>
           Replay 30s
+        </button>
+        <button 
+          onClick={() => window.open('http://localhost:8000/download-video', '_blank')}
+          style={{
+            background: 'rgba(16, 185, 129, 0.15)',
+            backdropFilter: 'blur(16px)',
+            border: '1px solid rgba(16, 185, 129, 0.3)',
+            color: '#10b981',
+            padding: '0.6rem 1.2rem',
+            borderRadius: '30px',
+            fontFamily: '"Inter", sans-serif',
+            fontSize: '0.85rem',
+            fontWeight: 600,
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            boxShadow: '0 4px 20px rgba(0,0,0,0.4)',
+            transition: 'all 0.2s'
+          }}
+          onMouseOver={e => { e.currentTarget.style.background = 'rgba(16, 185, 129, 0.25)'; e.currentTarget.style.borderColor = 'rgba(16, 185, 129, 0.5)'; }}
+          onMouseOut={e => { e.currentTarget.style.background = 'rgba(16, 185, 129, 0.15)'; e.currentTarget.style.borderColor = 'rgba(16, 185, 129, 0.3)'; }}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+          Export
         </button>
       </div>
     </div>

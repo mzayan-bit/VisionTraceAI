@@ -191,11 +191,11 @@ class MemoryManager:
                 
             # Query Qdrant
             if self.qdrant_client:
-                search_results = self.qdrant_client.search(
+                search_results = self.qdrant_client.query_points(
                     collection_name=self.collection_name,
-                    query_vector=vector,
+                    query=vector,
                     limit=limit
-                )
+                ).points
             else:
                 search_results = []
             
@@ -212,5 +212,5 @@ class MemoryManager:
             return results
             
         except Exception as e:
-            logger.error("Error during semantic search", extra={"error": str(e)})
+            logger.error("Error during semantic search", extra={"error": str(e)}, exc_info=True)
             return []
