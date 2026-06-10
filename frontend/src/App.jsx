@@ -9,8 +9,9 @@ import LiveMonitoring from './screens/LiveMonitoring';
 import AgentCommandCenter from './screens/AgentCommandCenter';
 import PlaceholderScreen from './screens/PlaceholderScreen';
 
-// Components
-import ChatPanel from './components/ChatPanel';
+// Insight Panels
+import IntelligentInsightPanel from './components/IntelligentInsightPanel';
+import AgentChatInterface from './components/AgentChatInterface';
 import './App.css';
 
 function App() {
@@ -19,12 +20,15 @@ function App() {
   const [fps, setFps] = useState(0);
   const [latency, setLatency] = useState(0);
   const [latestFrame, setLatestFrame] = useState(null);
+  
+  // Lifted global state for cross-component binding
   const [activeTrackId, setActiveTrackId] = useState(null);
+  
   const [peopleCount, setPeopleCount] = useState(0);
   const [totalPeople, setTotalPeople] = useState(0);
   const [activityLevel, setActivityLevel] = useState('Low');
   
-  // Navigation State (defaults to Screen 1)
+  // Navigation State
   const [activeScreen, setActiveScreen] = useState('live-monitoring');
   
   const wsRef = useRef(null);
@@ -43,7 +47,9 @@ function App() {
       ws.onmessage = (event) => {
         const data = JSON.parse(event.data);
         if (data.event_type === 'agent_response') {
-          handleAgentEvent(data);
+          if (data.action === 'highlight' && data.track_id !== undefined) {
+             setActiveTrackId(data.track_id);
+          }
         } else {
           handleFrameData(data);
         }
@@ -51,7 +57,6 @@ function App() {
       
       ws.onclose = () => {
         setIsConnected(false);
-        // Auto reconnect after 2 seconds
         setTimeout(connect, 2000);
       };
       
@@ -64,12 +69,7 @@ function App() {
     };
 
     connect();
-    
-    return () => {
-      if (wsRef.current) {
-        wsRef.current.close();
-      }
-    };
+    return () => { if (wsRef.current) wsRef.current.close(); };
   }, []);
 
   // Calculate FPS
@@ -78,7 +78,6 @@ function App() {
       setFps(framesCountRef.current);
       framesCountRef.current = 0;
     }, 1000);
-    
     return () => clearInterval(interval);
   }, []);
 
@@ -87,13 +86,8 @@ function App() {
     framesCountRef.current += 1;
     setLatestFrame(data);
     
-    if (data.latency_ms !== undefined) {
-      setLatency(data.latency_ms);
-    }
-    
-    if (data.total_people !== undefined) {
-      setTotalPeople(data.total_people);
-    }
+    if (data.latency_ms !== undefined) setLatency(data.latency_ms);
+    if (data.total_people !== undefined) setTotalPeople(data.total_people);
     
     if (data.detections) {
       setPeopleCount(data.detections.length);
@@ -106,17 +100,8 @@ function App() {
     }
   };
 
-  const handleAgentEvent = (data) => {
-    console.log("Received Agent Event:", data);
-    if (data.action === 'highlight' && data.track_id) {
-      setActiveTrackId(data.track_id);
-    } else {
-      setActiveTrackId(null);
-    }
-  };
-
-  const handleIntentChange = (intent) => {
-    // Rely on handleAgentEvent via WebSocket for highlighting instead.
+  const handleTargetSelect = (trackId) => {
+    setActiveTrackId(trackId);
   };
 
   // ─── Render Engine ──────────────────────────────────────────────────
@@ -128,6 +113,7 @@ function App() {
             isConnected={isConnected}
             latestFrame={latestFrame}
             activeTrackId={activeTrackId}
+            onTrackSelect={handleTargetSelect}
             fps={fps}
             latency={latency}
           />
@@ -138,24 +124,20 @@ function App() {
             latestFrame={latestFrame}
             totalPeople={totalPeople}
             runtimePeople={peopleCount}
+            onTargetSelect={handleTargetSelect}
           />
         );
       default:
-        // Use placeholder for all other unbuilt screens
         return <PlaceholderScreen screenId={screenId} />;
     }
   };
 
-  // ChatPanel serves as the global persistent right context drawer
   const rightPanelContent = (
-    <div style={{ height: '100%', padding: '20px' }}>
-      <ChatPanel 
-        onIntentChange={handleIntentChange} 
-        peopleCount={peopleCount}
-        activityLevel={activityLevel}
-        totalPeople={totalPeople}
-      />
-    </div>
+    <IntelligentInsightPanel 
+      peopleCount={peopleCount}
+      totalPeople={totalPeople}
+      activityLevel={activityLevel}
+    />
   );
 
   return (
