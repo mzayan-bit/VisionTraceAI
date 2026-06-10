@@ -56,6 +56,7 @@ const NAV_GROUPS = [
     label: 'Deep Intelligence',
     items: [
       { id: 'kpi-dashboard',   icon: BarChart3,   label: 'KPI Dashboard',    screen: 15 },
+      { id: 'heatmap',         icon: Map,         label: 'Heatmap Analytics', screen: 9 },
       { id: 'traffic',         icon: TrendingUp,  label: 'Traffic Analytics', screen: 16 },
       { id: 'occupancy',       icon: Users,       label: 'Occupancy',        screen: 17 },
       { id: 'trends',          icon: Activity,    label: 'Trend Analysis',   screen: 18 },
