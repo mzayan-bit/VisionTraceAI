@@ -1,11 +1,17 @@
 import { useState, useEffect, useRef } from 'react';
-import { Camera, Cpu, Upload } from 'lucide-react';
-import VideoPlayer from './components/VideoPlayer';
-import ChatPanel from './components/ChatPanel';
-import './App.css';
 import React from 'react';
 
-const AgentDashboard = React.lazy(() => import('./components/AgentDashboard'));
+// Shell & Navigation
+import LayoutShell from './layout/LayoutShell';
+
+// Screens
+import LiveMonitoring from './screens/LiveMonitoring';
+import AgentCommandCenter from './screens/AgentCommandCenter';
+import PlaceholderScreen from './screens/PlaceholderScreen';
+
+// Components
+import ChatPanel from './components/ChatPanel';
+import './App.css';
 
 function App() {
   const [isConnected, setIsConnected] = useState(false);
@@ -17,12 +23,12 @@ function App() {
   const [peopleCount, setPeopleCount] = useState(0);
   const [totalPeople, setTotalPeople] = useState(0);
   const [activityLevel, setActivityLevel] = useState('Low');
-  const [showAgentDashboard, setShowAgentDashboard] = useState(false);
+  
+  // Navigation State (defaults to Screen 1)
+  const [activeScreen, setActiveScreen] = useState('live-monitoring');
   
   const wsRef = useRef(null);
   const framesCountRef = useRef(0);
-  const fileInputRef = useRef(null);
-  const [isUploading, setIsUploading] = useState(false);
 
   // Connect to WebSocket
   useEffect(() => {
@@ -113,130 +119,52 @@ function App() {
     // Rely on handleAgentEvent via WebSocket for highlighting instead.
   };
 
-  const handleFileUpload = async (event) => {
-    const file = event.target.files[0];
-    if (!file) return;
-
-    setIsUploading(true);
-    const formData = new FormData();
-    formData.append('file', file);
-
-    try {
-      const response = await fetch('http://localhost:8000/upload-video', {
-        method: 'POST',
-        body: formData,
-      });
-      const data = await response.json();
-      console.log('Upload success:', data);
-    } catch (error) {
-      console.error('Upload failed:', error);
-    } finally {
-      setIsUploading(false);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
-    }
-  };
-
-  return (
-    <div className="dashboard-container">
-      {/* LEFT PANEL - Live Stream */}
-      <div className="stream-panel glass-panel" style={{ flex: 2 }}>
-        <div className="stream-header">
-          <div className="stream-title-group" style={{ display: 'flex', alignItems: 'center' }}>
-            <Camera className="text-accent" size={24} />
-            <h2 className="stream-title">Live Camera Feed</h2>
-            {isConnected && <div className="live-indicator" />}
-            
-            <input 
-              type="file" 
-              accept="video/*" 
-              ref={fileInputRef} 
-              style={{ display: 'none' }} 
-              onChange={handleFileUpload} 
-            />
-            <button 
-              className="upload-button" 
-              onClick={() => fileInputRef.current?.click()}
-              disabled={isUploading}
-              style={{
-                marginLeft: '1rem',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-                background: 'rgba(59, 130, 246, 0.15)',
-                color: '#3b82f6',
-                border: '1px solid rgba(59, 130, 246, 0.3)',
-                padding: '0.4rem 0.8rem',
-                borderRadius: 'var(--radius-md)',
-                fontSize: '0.875rem',
-                fontWeight: 600,
-                cursor: isUploading ? 'not-allowed' : 'pointer',
-                transition: 'all 0.2s ease'
-              }}
-            >
-              <Upload size={16} />
-              {isUploading ? 'Processing...' : 'Upload Video'}
-            </button>
-            <button
-              className="upload-button"
-              onClick={() => setShowAgentDashboard(true)}
-              style={{
-                marginLeft: '0.5rem',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-                background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(236, 72, 153, 0.15))',
-                color: '#d946ef',
-                border: '1px solid rgba(217, 70, 239, 0.3)',
-                padding: '0.4rem 0.8rem',
-                borderRadius: 'var(--radius-md)',
-                fontSize: '0.875rem',
-                fontWeight: 600,
-                cursor: 'pointer',
-                transition: 'all 0.2s ease',
-                boxShadow: '0 0 10px rgba(217, 70, 239, 0.1)'
-              }}
-            >
-              <Cpu size={16} />
-              Command Center
-            </button>
-          </div>
-        </div>
-        
-        <VideoPlayer 
-          latestFrame={latestFrame} 
-          isConnected={isConnected} 
-          activeTrackId={activeTrackId} 
-          fps={fps}
-          latency={latency}
-        />
-      </div>
-
-      {/* RIGHT PANEL - AI Insight Layer */}
-      <div className="analytics-panel" style={{ flex: 1, display: 'flex', flexDirection: 'column', width: 'auto', minWidth: '400px', maxWidth: '450px' }}>
-        
-        {/* Chat Interface / Insight Dashboard */}
-        <ChatPanel 
-          onIntentChange={handleIntentChange} 
-          peopleCount={peopleCount}
-          activityLevel={activityLevel}
-          totalPeople={totalPeople}
-        />
-
-      </div>
-      
-      {showAgentDashboard && (
-        <React.Suspense fallback={<div>Loading Command Center...</div>}>
-          <AgentDashboard 
-            onClose={() => setShowAgentDashboard(false)} 
+  // ─── Render Engine ──────────────────────────────────────────────────
+  const renderScreen = (screenId) => {
+    switch (screenId) {
+      case 'live-monitoring':
+        return (
+          <LiveMonitoring
+            isConnected={isConnected}
+            latestFrame={latestFrame}
+            activeTrackId={activeTrackId}
+            fps={fps}
+            latency={latency}
+          />
+        );
+      case 'agent-command':
+        return (
+          <AgentCommandCenter
             latestFrame={latestFrame}
             totalPeople={totalPeople}
             runtimePeople={peopleCount}
           />
-        </React.Suspense>
-      )}
+        );
+      default:
+        // Use placeholder for all other unbuilt screens
+        return <PlaceholderScreen screenId={screenId} />;
+    }
+  };
+
+  // ChatPanel serves as the global persistent right context drawer
+  const rightPanelContent = (
+    <div style={{ height: '100%', padding: '20px' }}>
+      <ChatPanel 
+        onIntentChange={handleIntentChange} 
+        peopleCount={peopleCount}
+        activityLevel={activityLevel}
+        totalPeople={totalPeople}
+      />
     </div>
+  );
+
+  return (
+    <LayoutShell
+      activeScreen={activeScreen}
+      onNavigate={setActiveScreen}
+      renderScreen={renderScreen}
+      rightPanelContent={rightPanelContent}
+    />
   );
 }
 

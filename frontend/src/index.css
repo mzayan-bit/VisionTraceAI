@@ -1,29 +1,6 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;600;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;600;800&family=Fira+Code:wght@400;500;600&display=swap');
 
-:root {
-  --bg-base: #030408;
-  --bg-surface: rgba(12, 14, 22, 0.5);
-  --bg-surface-hover: rgba(24, 28, 44, 0.7);
-  
-  --text-primary: #ffffff;
-  --text-secondary: #8b99ae;
-  --text-accent: #38bdf8;
-  
-  --border-color: rgba(255, 255, 255, 0.05);
-  
-  --primary: #38bdf8;
-  --primary-glow: rgba(56, 189, 248, 0.5);
-  
-  --success: #10b981;
-  --danger: #ef4444;
-  --warning: #f59e0b;
-  
-  --glass-blur: blur(12px);
-  --radius-lg: 16px;
-  --radius-md: 12px;
-  --radius-sm: 8px;
-}
-
+/* Base reset */
 * {
   margin: 0;
   padding: 0;
@@ -31,43 +8,78 @@
 }
 
 body {
-  font-family: 'Inter', sans-serif;
+  font-family: var(--font-body, 'Inter', sans-serif);
   background-color: var(--bg-base);
   color: var(--text-primary);
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   overflow: hidden; /* App is a full-screen dashboard */
-  background-image: 
-    radial-gradient(circle at 10% 50%, rgba(56, 189, 248, 0.05) 0%, transparent 40%),
-    radial-gradient(circle at 90% 20%, rgba(16, 185, 129, 0.03) 0%, transparent 40%);
 }
 
 h1, h2, h3, h4, h5, h6 {
-  font-family: 'Outfit', sans-serif;
+  font-family: var(--font-display, 'Outfit', sans-serif);
 }
 
+/* ── Typography Hierarchy ────────────────────────────────────── */
+.text-display {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 2.5rem;
+}
+.text-heading {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 1.5rem;
+}
+.text-label {
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+}
+.text-mono {
+  font-family: var(--font-mono);
+}
+
+/* ── Structural Utilities ────────────────────────────────────── */
 .glass-panel {
   background: var(--bg-surface);
   backdrop-filter: var(--glass-blur);
   -webkit-backdrop-filter: var(--glass-blur);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+  box-shadow: var(--shadow-elevation-2);
 }
 
-/* Animations */
-@keyframes pulse-glow {
-  0% { box-shadow: 0 0 0 0 var(--primary-glow); }
-  70% { box-shadow: 0 0 0 10px rgba(59, 130, 246, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); }
+/* Hover Lift Effect */
+.hover-lift {
+  transition: all var(--transition-base);
+}
+.hover-lift:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-elevation-3);
+  border-color: var(--border-accent);
 }
 
-@keyframes fade-in {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+/* ── Scrollbars ─────────────────────────────────────────────── */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
 }
 
-/* Chat HTML Content */
+/* ── Legacy Component Styles (Chat HTML etc) ─────────────────── */
 .assistant-html-content {
   display: flex;
   flex-direction: column;
@@ -77,17 +89,16 @@ h1, h2, h3, h4, h5, h6 {
 .assistant-html-content img {
   max-width: 150px;
   border-radius: var(--radius-sm);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--border-color);
   margin-top: 0.5rem;
   margin-bottom: 0.5rem;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--shadow-elevation-1);
   display: block;
 }
 
-/* Insight Layer Formatting */
 .insight-section {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
   border-radius: var(--radius-sm);
   padding: 0.75rem;
   margin-bottom: 0.75rem;
@@ -95,7 +106,7 @@ h1, h2, h3, h4, h5, h6 {
 
 .insight-section strong {
   color: var(--text-accent);
-  font-family: 'Outfit', sans-serif;
+  font-family: var(--font-display);
   font-size: 0.9rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -106,4 +117,16 @@ h1, h2, h3, h4, h5, h6 {
 .insight-section p {
   margin: 0;
   color: var(--text-primary);
+}
+
+/* Animations */
+@keyframes pulse-glow {
+  0% { box-shadow: 0 0 0 0 var(--primary-glow); }
+  70% { box-shadow: 0 0 0 10px transparent; }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
 }
