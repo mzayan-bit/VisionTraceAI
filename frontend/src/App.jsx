@@ -8,10 +8,13 @@ import LayoutShell from './layout/LayoutShell';
 import LiveMonitoring from './screens/LiveMonitoring';
 import AgentCommandCenter from './screens/AgentCommandCenter';
 import PlaceholderScreen from './screens/PlaceholderScreen';
+import CameraManagement from './screens/CameraManagement';
+import MultiCameraGrid from './screens/MultiCameraGrid';
+import PlaybackCenter from './screens/PlaybackCenter';
+import SpatialMapViewer from './screens/SpatialMapViewer';
 
 // Insight Panels
 import IntelligentInsightPanel from './components/IntelligentInsightPanel';
-import AgentChatInterface from './components/AgentChatInterface';
 import './App.css';
 
 function App() {
@@ -28,8 +31,9 @@ function App() {
   const [totalPeople, setTotalPeople] = useState(0);
   const [activityLevel, setActivityLevel] = useState('Low');
   
-  // Navigation State
+  // Navigation & Layout State
   const [activeScreen, setActiveScreen] = useState('live-monitoring');
+  const [customRightPanel, setCustomRightPanel] = useState(null);
   
   const wsRef = useRef(null);
   const framesCountRef = useRef(0);
@@ -104,6 +108,11 @@ function App() {
     setActiveTrackId(trackId);
   };
 
+  const handleNavigate = (screenId) => {
+    setCustomRightPanel(null); // Clear custom panels on navigation
+    setActiveScreen(screenId);
+  };
+
   // ─── Render Engine ──────────────────────────────────────────────────
   const renderScreen = (screenId) => {
     switch (screenId) {
@@ -127,12 +136,23 @@ function App() {
             onTargetSelect={handleTargetSelect}
           />
         );
+      case 'camera-mgmt':
+        return <CameraManagement setRightPanelContent={setCustomRightPanel} />;
+      case 'multi-camera':
+        return <MultiCameraGrid />;
+      case 'playback':
+        return <PlaybackCenter />;
+      case 'building-3d':
+        return <SpatialMapViewer mode="building" />;
+      case 'geo-view':
+        return <SpatialMapViewer mode="geo" />;
       default:
         return <PlaceholderScreen screenId={screenId} />;
     }
   };
 
-  const rightPanelContent = (
+  // The active right panel depends on what the current screen has requested
+  const rightPanelContent = customRightPanel || (
     <IntelligentInsightPanel 
       peopleCount={peopleCount}
       totalPeople={totalPeople}
@@ -143,7 +163,7 @@ function App() {
   return (
     <LayoutShell
       activeScreen={activeScreen}
-      onNavigate={setActiveScreen}
+      onNavigate={handleNavigate}
       renderScreen={renderScreen}
       rightPanelContent={rightPanelContent}
     />
