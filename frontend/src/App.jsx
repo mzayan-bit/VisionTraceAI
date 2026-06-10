@@ -20,6 +20,13 @@ import AlertCenter from './screens/AlertCenter';
 import EventTimeline from './screens/EventTimeline';
 import HeatmapAnalytics from './screens/HeatmapAnalytics';
 
+// Administrative & Analytic Framework
+import KPIDashboard from './screens/KPIDashboard';
+import EnterpriseSecurity from './screens/EnterpriseSecurity';
+import AuditLogViewer from './screens/AuditLogViewer';
+import EvidenceExportConsole from './screens/EvidenceExportConsole';
+import GlobalSettingsPanel from './screens/GlobalSettingsPanel';
+
 // Insight Panels
 import IntelligentInsightPanel from './components/IntelligentInsightPanel';
 import './App.css';
@@ -123,6 +130,7 @@ function App() {
   // ─── Render Engine ──────────────────────────────────────────────────
   const renderScreen = (screenId) => {
     switch (screenId) {
+      // Live Operations & Infrastructure
       case 'live-monitoring':
         return (
           <LiveMonitoring
@@ -156,7 +164,7 @@ function App() {
         
       // Deeper Intelligence Screens
       case 'global-search':
-      case 'scene-intel': // Sharing semantic search interface for now
+      case 'scene-intel': 
         return <GlobalSearch />;
       case 'agent-reasoning':
       case 'agent-memory':
@@ -165,10 +173,30 @@ function App() {
       case 'alert-center':
         return <AlertCenter />;
       case 'event-timeline':
-      case 'object-tracking': // Timelines share grid
+      case 'object-tracking': 
         return <EventTimeline />;
       case 'heatmap':
         return <HeatmapAnalytics />;
+
+      // Analytics & Settings Screens
+      case 'kpi-dashboard':
+        return <KPIDashboard mode="kpi" />;
+      case 'traffic':
+      case 'occupancy':
+      case 'trends':
+        return <KPIDashboard mode={screenId} />;
+      case 'users':
+        return <EnterpriseSecurity mode="users" />;
+      case 'permissions':
+        return <EnterpriseSecurity mode="permissions" />;
+      case 'audit-logs':
+        return <AuditLogViewer />;
+      case 'export':
+        return <EvidenceExportConsole mode="export" />;
+      case 'evidence':
+        return <EvidenceExportConsole mode="evidence" />;
+      case 'settings':
+        return <GlobalSettingsPanel />;
         
       default:
         return <PlaceholderScreen screenId={screenId} />;
