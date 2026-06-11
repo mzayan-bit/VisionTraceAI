@@ -89,7 +89,7 @@ class StreamingPipelineConsumer:
         # Load ReID Engine (mocked safely if fastreid is unavailable)
         try:
             self.reid = ReIDEngine()
-            self.reid.load_model()
+            self.reid.load_model(mock_for_testing=True)
         except Exception as e:
             logger.warning(f"ReIDEngine failed to initialize: {e}. Will proceed without ReID.")
             self.reid = None

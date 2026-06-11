@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, Sparkles, Filter, ShieldAlert, Camera, MapPin, Clock, Tag } from 'lucide-react';
+import { Search, Sparkles, Filter, ShieldAlert, Camera, MapPin, Clock, Tag, Crosshair, AlertTriangle, Loader } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const MOCK_RESULTS = [
@@ -10,21 +10,40 @@ const MOCK_RESULTS = [
 
 export default function GlobalSearch() {
   const [query, setQuery] = useState('');
-  const [isSearching, setIsSearching] = useState(false);
+  const [searchResults, setSearchResults] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
   const [hasSearched, setHasSearched] = useState(false);
 
-  const handleSearch = (e) => {
+  const handleSearch = async (e) => {
     e.preventDefault();
     if (!query.trim()) return;
     
-    setIsSearching(true);
+    setIsLoading(true);
+    setError(null);
     setHasSearched(false);
     
-    // Simulate AI parsing and vector matching
-    setTimeout(() => {
-      setIsSearching(false);
+    try {
+      // Simulate AI parsing and vector matching
+      await new Promise(resolve => setTimeout(resolve, 1200));
+      
+      // In production this would be: const res = await fetch(`/api/search?q=${query}`);
+      // For now we use mock data — but safely guard against undefined
+      const results = MOCK_RESULTS || [];
+      setSearchResults(results);
       setHasSearched(true);
-    }, 1200);
+    } catch (err) {
+      console.error("Search failed:", err);
+      setError("Unable to complete search. Please try again or check the backend connection.");
+      setSearchResults([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Quick-fill chip handler
+  const handleChipClick = (chipText) => {
+    setQuery(chipText.replace(/"/g, ''));
   };
 
   return (
@@ -74,35 +93,64 @@ export default function GlobalSearch() {
           />
           <button 
             type="submit"
-            disabled={isSearching}
+            disabled={isLoading}
             style={{
               position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)',
-              background: isSearching ? 'transparent' : 'var(--primary)',
-              color: isSearching ? 'var(--primary)' : '#fff',
+              background: isLoading ? 'transparent' : 'var(--primary)',
+              color: isLoading ? 'var(--primary)' : '#fff',
               border: 'none',
               width: 44, height: 44,
               borderRadius: '8px',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              cursor: isSearching ? 'default' : 'pointer',
+              cursor: isLoading ? 'default' : 'pointer',
               transition: 'all var(--transition-fast)'
             }}
           >
-            {isSearching ? <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: "linear" }}><Search size={20} /></motion.div> : <Search size={20} />}
+            {isLoading ? <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: "linear" }}><Search size={20} /></motion.div> : <Search size={20} />}
           </button>
         </form>
 
         <div style={{ display: 'flex', gap: '12px', marginTop: '24px' }}>
           {['"Red jacket"', '"After 7 PM"', '"Backpack"', '"Lobby camera"'].map((chip, idx) => (
-            <div key={idx} style={{ padding: '6px 12px', background: 'rgba(255,255,255,0.05)', color: 'var(--text-secondary)', borderRadius: '20px', fontSize: '0.8rem', cursor: 'pointer', border: '1px solid var(--border-color)' }}>
+            <div 
+              key={idx} 
+              onClick={() => handleChipClick(chip)}
+              style={{ padding: '6px 12px', background: 'rgba(255,255,255,0.05)', color: 'var(--text-secondary)', borderRadius: '20px', fontSize: '0.8rem', cursor: 'pointer', border: '1px solid var(--border-color)', transition: 'all var(--transition-fast)' }}
+              onMouseOver={e => { e.currentTarget.style.borderColor = 'var(--primary)'; e.currentTarget.style.color = 'var(--primary)'; }}
+              onMouseOut={e => { e.currentTarget.style.borderColor = 'var(--border-color)'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
+            >
               {chip}
             </div>
           ))}
         </div>
       </div>
 
+      {/* ── Loading State ─────────────────────────────────────────── */}
+      {isLoading && (
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '16px' }}>
+          <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 2, ease: "linear" }}>
+            <Loader size={40} color="var(--primary)" />
+          </motion.div>
+          <p style={{ color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)', fontSize: '0.9rem' }}>
+            Searching the vector database...
+          </p>
+        </div>
+      )}
+
+      {/* ── Error State ───────────────────────────────────────────── */}
+      {!isLoading && error && (
+        <div className="glass-panel" style={{ padding: '24px', display: 'flex', alignItems: 'center', gap: '16px', background: 'rgba(239, 68, 68, 0.05)', border: '1px solid rgba(239, 68, 68, 0.2)' }}>
+          <AlertTriangle size={24} color="#ef4444" />
+          <div>
+            <div style={{ color: '#ef4444', fontWeight: 600, marginBottom: '4px' }}>Search Error</div>
+            <div style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>{error}</div>
+          </div>
+        </div>
+      )}
+
       {/* ── Results Matrix ───────────────────────────────────────── */}
       <AnimatePresence>
-        {hasSearched && (
+        {!isLoading && !error && hasSearched && (
           <motion.div 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -110,7 +158,7 @@ export default function GlobalSearch() {
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-primary)' }}>
-                Found <strong style={{ color: 'var(--primary)' }}>{MOCK_RESULTS.length} matches</strong> across vector space index.
+                Found <strong style={{ color: 'var(--primary)' }}>{searchResults?.length || 0} matches</strong> across vector space index.
               </div>
               <button style={{ background: 'transparent', border: '1px solid var(--border-color)', color: 'var(--text-primary)', padding: '6px 16px', borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
                 <Filter size={16} /> Filter Results
@@ -119,14 +167,8 @@ export default function GlobalSearch() {
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '20px', overflowY: 'auto', paddingRight: '8px' }}>
               
-              {!MOCK_RESULTS || MOCK_RESULTS.length === 0 ? (
-                <div style={{ gridColumn: '1 / -1', padding: '40px', textAlign: 'center', color: 'var(--text-secondary)' }}>
-                  <Search size={48} opacity={0.5} style={{ marginBottom: '16px' }} />
-                  <h3 style={{ margin: 0, color: 'var(--text-primary)' }}>No results found for this query.</h3>
-                  <p>Try adjusting your natural language terms.</p>
-                </div>
-              ) : (
-                MOCK_RESULTS?.map((res, idx) => (
+              {searchResults?.length > 0 ? (
+                searchResults.map((res, idx) => (
                   <motion.div 
                     key={res?.id || idx}
                     initial={{ opacity: 0, scale: 0.95 }}
@@ -161,11 +203,17 @@ export default function GlobalSearch() {
                           <div key={tIdx} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', fontSize: '0.75rem', padding: '4px 8px', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
                             <Tag size={10} color="var(--primary)" /> {tag}
                           </div>
-                        ))}
+                        )) || null}
                       </div>
                     </div>
                   </motion.div>
                 ))
+              ) : (
+                <div style={{ gridColumn: '1 / -1', padding: '60px 40px', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                  <Search size={48} style={{ marginBottom: '16px', opacity: 0.4 }} />
+                  <h3 style={{ margin: '0 0 8px 0', color: 'var(--text-primary)' }}>No matching identities or events found</h3>
+                  <p style={{ margin: 0, fontSize: '0.9rem' }}>Try adjusting your natural language terms or broadening the search window.</p>
+                </div>
               )}
 
             </div>

@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { FileText, Download, Lock } from 'lucide-react';
+import { FileText, Download, Lock, CheckCircle2 } from 'lucide-react';
 
 const MOCK_AUDIT_LOGS = Array.from({ length: 100 }).map((_, i) => ({
   id: `AL-${100000 - i}`,
-  timestamp: new Date(Date.now() - i * 15000).toISOString().replace('T', ' ').substring(0, 23), // Include ms
+  timestamp: new Date(Date.now() - i * 15000).toISOString().replace('T', ' ').substring(0, 23),
   user: ['sysadmin_01', 'operator_j.doe', 'sysadmin_02', 'viewer_x'][Math.floor(Math.random() * 4)],
   action: [
     'Exported video chunk [CAM_01_SOUTH]',
@@ -17,10 +17,46 @@ const MOCK_AUDIT_LOGS = Array.from({ length: 100 }).map((_, i) => ({
 
 export default function AuditLogViewer() {
   const [searchTerm, setSearchTerm] = useState('');
+  const [exportSuccess, setExportSuccess] = useState(false);
 
   const filteredLogs = MOCK_AUDIT_LOGS.filter(log => 
     log.user.includes(searchTerm) || log.action.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  // ─── Real CSV Export ─────────────────────────────────────────────
+  const exportAuditToCSV = () => {
+    try {
+      const escapeCSV = (str) => {
+        const s = String(str);
+        if (s.includes(',') || s.includes('"') || s.includes('\n')) {
+          return '"' + s.replace(/"/g, '""') + '"';
+        }
+        return s;
+      };
+
+      const header = 'Log ID,Timestamp (UTC),Operator ID,IP Address,Mutation Action';
+      const rows = filteredLogs.map(log => 
+        [log.id, log.timestamp, log.user, log.ip, log.action].map(escapeCSV).join(',')
+      );
+      const csvString = [header, ...rows].join('\n');
+
+      const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'audit_logs_export_' + new Date().toISOString().slice(0, 10) + '.csv';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      // Flash success indicator
+      setExportSuccess(true);
+      setTimeout(() => setExportSuccess(false), 2500);
+    } catch (err) {
+      console.error('CSV Export failed:', err);
+    }
+  };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', gap: '24px' }}>
@@ -51,10 +87,27 @@ export default function AuditLogViewer() {
               borderRadius: '6px', outline: 'none', fontFamily: 'var(--font-body)', width: 250 
             }}
           />
-          <button style={{ background: 'transparent', color: 'var(--text-primary)', border: '1px solid var(--border-color)', padding: '8px 16px', borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
-            <Download size={16} /> Export CSV
+          <button 
+            onClick={exportAuditToCSV}
+            style={{ 
+              background: exportSuccess ? 'rgba(16, 185, 129, 0.15)' : 'transparent', 
+              color: exportSuccess ? '#10b981' : 'var(--text-primary)', 
+              border: `1px solid ${exportSuccess ? 'rgba(16, 185, 129, 0.4)' : 'var(--border-color)'}`, 
+              padding: '8px 16px', borderRadius: '6px', 
+              display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer',
+              transition: 'all 0.3s ease',
+              fontWeight: 600,
+            }}
+          >
+            {exportSuccess ? <><CheckCircle2 size={16} /> Exported!</> : <><Download size={16} /> Export CSV</>}
           </button>
         </div>
+      </div>
+
+      {/* Filtered count indicator */}
+      <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+        Showing {filteredLogs.length} of {MOCK_AUDIT_LOGS.length} log entries
+        {searchTerm && <span> — filtered by "{searchTerm}"</span>}
       </div>
 
       {/* Grid */}

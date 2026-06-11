@@ -62,6 +62,8 @@ export default function KPIDashboard({ mode = 'kpi' }) {
     switch(mode) {
       case 'traffic':
         return { title: 'Traffic Flow Analytics', desc: 'Real-time vehicle and pedestrian movement volume.', icon: Car };
+      case 'deep-analytics':
+        return { title: 'Deep Analytics Engine', desc: 'Aggregated cross-section of system KPIs, flow volume, and predictive modeling.', icon: Activity };
       case 'occupancy':
         return { title: 'Heatmap & Occupancy', desc: 'Predictive crowd density and spatial utilization.', icon: ThermometerSun };
       case 'trends':
@@ -101,8 +103,8 @@ export default function KPIDashboard({ mode = 'kpi' }) {
         </div>
       </div>
 
-      {/* ── Metrics Summary Cards (KPI Only) ─────────────────────── */}
-      {mode === 'kpi' && (
+      {/* ── Metrics Summary Cards (KPI & Deep Analytics) ─────────────────────── */}
+      {(mode === 'kpi' || mode === 'deep-analytics') && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '20px' }}>
           {[
             { label: 'Cumulative Events', value: '14,204', trend: '+12%', icon: Layers, color: '#38bdf8' },
@@ -132,7 +134,7 @@ export default function KPIDashboard({ mode = 'kpi' }) {
       {/* ── Charts Engine ──────────────────────────────────────── */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '24px', overflowY: 'auto', paddingRight: '8px' }}>
         
-        {mode === 'occupancy' && (
+        {(mode === 'occupancy' || mode === 'deep-analytics') && (
           <div className="glass-panel" style={{ padding: '24px', flex: 1, minHeight: '400px' }}>
             <h3 style={{ margin: '0 0 24px 0', color: 'var(--text-primary)' }}>Occupancy Projection Model</h3>
             <ResponsiveContainer width="100%" height="100%">
@@ -156,7 +158,7 @@ export default function KPIDashboard({ mode = 'kpi' }) {
           </div>
         )}
 
-        {mode === 'traffic' && (
+        {(mode === 'traffic' || mode === 'deep-analytics') && (
           <div className="glass-panel" style={{ padding: '24px', flex: 1, minHeight: '400px' }}>
             <h3 style={{ margin: '0 0 24px 0', color: 'var(--text-primary)' }}>Traffic Flow Breakdown</h3>
             <ResponsiveContainer width="100%" height="100%">
@@ -173,7 +175,7 @@ export default function KPIDashboard({ mode = 'kpi' }) {
           </div>
         )}
 
-        {mode === 'trends' && (
+        {(mode === 'trends' || mode === 'deep-analytics') && (
           <div className="glass-panel" style={{ padding: '24px', flex: 1, minHeight: '400px' }}>
             <h3 style={{ margin: '0 0 24px 0', color: 'var(--text-primary)' }}>Weekly Operational Trends</h3>
             <ResponsiveContainer width="100%" height="100%">
@@ -191,7 +193,7 @@ export default function KPIDashboard({ mode = 'kpi' }) {
           </div>
         )}
 
-        {mode === 'kpi' && (
+        {(mode === 'kpi' || mode === 'deep-analytics') && (
           <>
             <div className="glass-panel" style={{ padding: '24px', height: '320px' }}>
               <h3 style={{ margin: '0 0 24px 0', color: 'var(--text-primary)' }}>System Events & Inference Latency</h3>

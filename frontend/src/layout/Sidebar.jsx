@@ -6,7 +6,7 @@ import {
   Bot, Database, GitBranch, ShieldAlert,
   BarChart3, TrendingUp, Users, Activity,
   Map, Globe,
-  UserCog, Lock, FileText, Download, Package, Settings,
+  UserCog, Lock, FileText, Package, Settings,
   ChevronRight, Palette,
 } from 'lucide-react';
 import { useTheme } from '../themes/ThemeProvider';
@@ -68,8 +68,7 @@ const NAV_GROUPS = [
       { id: 'users',          icon: UserCog,      label: 'User Management',  screen: 21 },
       { id: 'permissions',    icon: Lock,         label: 'Permissions',      screen: 22 },
       { id: 'audit-logs',     icon: FileText,     label: 'Audit Logs',       screen: 23 },
-      { id: 'export',         icon: Download,     label: 'Export Center',    screen: 24 },
-      { id: 'evidence',       icon: Package,      label: 'Evidence Package', screen: 25 },
+      { id: 'export',         icon: Package,      label: 'Export & Evidence', screen: 24 },
       { id: 'settings',       icon: Settings,     label: 'Global Settings',  screen: 26 },
     ],
   },

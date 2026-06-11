@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Sidebar from './Sidebar';
 import RightDrawer from './RightDrawer';
+import ErrorBoundary from '../components/ErrorBoundary';
 
 export default function LayoutShell({
   activeScreen,
@@ -68,7 +69,9 @@ export default function LayoutShell({
               transition={{ duration: 0.2 }}
               style={{ height: '100%' }}
             >
-              {renderScreen(activeScreen)}
+              <ErrorBoundary>
+                {renderScreen(activeScreen)}
+              </ErrorBoundary>
             </motion.div>
           </AnimatePresence>
         </main>

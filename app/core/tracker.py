@@ -53,6 +53,7 @@ class VisionTracker:
         self.system_latency = 0.0
         self.scale_cooldown_until = 0.0
         self.seen_track_ids = set()
+        self.embedded_track_ids = set()
         
         # ML and Memory integration
         self.feature_engine = FeatureEngine()
@@ -170,9 +171,11 @@ class VisionTracker:
                     x1, y1 = max(0, x1), max(0, y1)
                     x2, y2 = min(w, x2), min(h, y2)
                     if x2 > x1 and y2 > y1:
-                        crop = frame[y1:y2, x1:x2].copy()
-                        # Pass crop and metadata to background thread
-                        self.executor.submit(self._async_embed_and_save, crop, int(track_id), float(timestamp), self.camera_id, bbox_dict)
+                        if int(track_id) not in self.embedded_track_ids:
+                            crop = frame[y1:y2, x1:x2].copy()
+                            # Pass crop and metadata to background thread
+                            self.executor.submit(self._async_embed_and_save, crop, int(track_id), float(timestamp), self.camera_id, bbox_dict)
+                            self.embedded_track_ids.add(int(track_id))
                 except Exception as e:
                     logger.error("Failed to crop frame for embedding", extra={"error": str(e)})
                 
@@ -248,7 +251,7 @@ class VisionTracker:
         
         out = None
         if output_path is not None:
-            fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+            fourcc = cv2.VideoWriter_fourcc(*'avc1')
             out = cv2.VideoWriter(str(output_path), fourcc, fps, (width, height))
             
         frame_results = []
@@ -277,11 +280,10 @@ class VisionTracker:
                         except Exception:
                             pass
 
-                # If FPS < 20, skip odd frames
-                if self.system_fps < 20.0 and now > self.scale_cooldown_until:
-                    if frame_number % 2 != 0:
-                        frame_number += 1
-                        continue
+                # Unconditional frame skip to speed up processing (process alternate frames)
+                if frame_number % 2 != 0:
+                    frame_number += 1
+                    continue
 
                 # If latency > 300, use lower resolution
                 current_imgsz = 640

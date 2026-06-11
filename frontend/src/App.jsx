@@ -184,9 +184,8 @@ function App() {
       case 'audit-logs':
         return <AuditLogViewer />;
       case 'export':
-        return <EvidenceExportConsole mode="export" />;
       case 'evidence':
-        return <EvidenceExportConsole mode="evidence" />;
+        return <EvidenceExportConsole />;
       case 'settings':
         return <GlobalSettingsPanel />;
         
