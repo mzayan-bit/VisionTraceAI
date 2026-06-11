@@ -1,15 +1,15 @@
 <p align="center">
   <h1 align="center">🔍 VisionTraceAI</h1>
   <p align="center">
-    <strong>Production-Grade AI-Powered Surveillance & Video Analytics Platform</strong>
+    <strong>Production-Grade AI Surveillance, Streaming Analytics & Agentic Workflow Dashboard</strong>
   </p>
   <p align="center">
     <a href="https://github.com/mzayan-bit/VisionTraceAI/actions"><img src="https://img.shields.io/github/actions/workflow/status/mzayan-bit/VisionTraceAI/ci.yml?branch=main&style=flat-square" alt="CI"></a>
     <a href="https://github.com/mzayan-bit/VisionTraceAI/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue?style=flat-square" alt="License"></a>
     <img src="https://img.shields.io/badge/python-3.11%2B-blue?style=flat-square&logo=python&logoColor=white" alt="Python 3.11+">
-    <img src="https://img.shields.io/badge/package%20manager-uv-blueviolet?style=flat-square" alt="uv">
-    <img src="https://img.shields.io/badge/Week%201%20MVP-Complete-brightgreen?style=flat-square" alt="Week 1 MVP">
-    <img src="https://img.shields.io/badge/tests-99%20passing-brightgreen?style=flat-square" alt="Tests">
+    <img src="https://img.shields.io/badge/react-18-blue?style=flat-square&logo=react&logoColor=white" alt="React">
+    <img src="https://img.shields.io/badge/kafka-streaming-red?style=flat-square&logo=apachekafka&logoColor=white" alt="Kafka">
+    <img src="https://img.shields.io/badge/qdrant-vector%20DB-purple?style=flat-square" alt="Qdrant">
   </p>
 </p>
 
@@ -17,423 +17,162 @@
 
 ## 📋 Overview
 
-**VisionTraceAI** is an enterprise-grade AI surveillance system designed for real-time video analytics. It provides end-to-end pipelines for object detection, multi-object tracking, re-identification, and anomaly detection across multiple camera feeds.
+**VisionTraceAI** is a highly scalable, enterprise-grade AI surveillance platform. It bridges the gap between state-of-the-art computer vision models (YOLOv11, SigLIP, FastReID) and modern web-based operational dashboards. 
 
-### Key Capabilities
+It is built around an event-driven Kafka architecture, a LangGraph-powered AI Supervisor Agent, and a React/Vite frontend designed for real-time video analytics, zero-shot global searching, and multi-camera re-identification.
 
-| Capability              | Description                                                  |
-|------------------------|--------------------------------------------------------------|
-| 🎯 Object Detection    | Real-time detection with state-of-the-art deep learning models |
-| 🔄 Multi-Object Tracking | Persistent identity tracking across frames and cameras       |
-| 🧠 Anomaly Detection   | Behavioral anomaly detection and alerting                    |
-| 📹 Multi-Stream        | Concurrent processing of multiple RTSP/video streams         |
-| 📊 Analytics Dashboard | Real-time metrics, heatmaps, and event logging               |
-| 🐳 Containerized       | Production-ready Docker deployment                           |
+### 🌟 Key Capabilities
+
+| Capability | Technology Stack | Description |
+|---|---|---|
+| 🎯 **High-Speed Object Tracking** | `YOLOv11m`, `ByteTrack`, `OpenCV` | Real-time object detection and kinematics tracking with Apple Silicon (MPS) & CUDA acceleration. |
+| 🧠 **Semantic Vector Search** | `SigLIP`, `Qdrant` | Extracts 768-dimensional visual embeddings allowing you to search "person wearing a red hoodie" across all cameras. |
+| 📡 **Real-Time Streaming** | `Apache Kafka`, `WebSockets` | Decoupled event streaming for publishing live bounding boxes and insights to the dashboard. |
+| 🗄️ **Global Scene Memory** | `Redis` | Caches short-term trajectory data and active tracks for ultra-fast in-memory retrieval. |
+| 🤖 **Agentic Workflows** | `LangGraph`, `LLMs` | Autonomous AI Supervisor that can execute complex user commands via custom tools (`find_custom_object.py`, `search_timeline.py`). |
+| 👤 **Identity Re-Identification** | `FastReID` | Persistent tracking and matching of identities across different camera feeds and occlusions. |
+
+---
+
+## 🖥️ The Frontend Dashboard
+
+The frontend is a world-class React/Vite application packed with over 15 distinct functional screens to give security operators absolute control over the surveillance data.
+
+### Core Modules
+* **Live Monitoring & Multi-Camera Grid**: View real-time processed streams and manage camera fleets natively in the browser.
+* **Playback Center**: A custom HTML5 video playback engine built to handle processed `H.264 (avc1)` video exports complete with overlay metrics.
+* **Global Search**: Instantly query historical events using natural language text prompts.
+* **Agent Command Center**: An interactive chat interface communicating directly with the backend LangGraph AI supervisor to autonomously investigate footage.
+* **Analytics & Heatmaps**: Visualize physical security metrics, traffic flows, spatial mappings, and generate comprehensive PDF audit reports.
+
+---
+
+## ⚙️ Backend Architecture
+
+The Python backend is engineered for maximum throughput and modularity.
+
+### 1. Vision Engine (`app/core/tracker.py`)
+Handles the heavy lifting of reading frames, skipping non-essential frames for speed optimization, evaluating the YOLO neural network, and processing kinematics.
+* **Performance**: Optimized to skip SigLIP extraction redundancies by caching `embedded_track_ids`.
+
+### 2. Streaming Layer (`backend/streaming/`)
+* **Kafka Producers**: The tracker publishes every single detected bounding box and action classification to a Kafka topic.
+* **Kafka Consumers**: A background pipeline consumes the Kafka feed, routes crops through the `FeatureEngine` and `ColorEngine`, and writes the semantic metadata into the databases.
+
+### 3. Agentic Layer (`backend/agent/`)
+Implements a stateful AI workflow using `LangGraph`.
+* **Supervisor**: Delegates tasks.
+* **Tools**: Executes strict Python tools (like searching the timeline or cross-camera matching) on behalf of the user query.
 
 ---
 
 ## 🏗️ Project Structure
 
-```
+```text
 VisionTraceAI/
+├── frontend/               # React + Vite UI Application
+│   ├── src/
+│   │   ├── components/     # UI Building Blocks (VideoPlayer, ErrorBoundary, etc.)
+│   │   ├── screens/        # 15+ Core Dashboard Views
+│   │   ├── layout/         # Shell, Sidebar, and Drawers
+│   │   └── themes/         # CSS design tokens
 │
-├── app/                    # Main application package
-│   ├── core/               # Core logic, base classes, exceptions
-│   ├── services/           # Business logic services
-│   ├── pipelines/          # ML/AI processing pipelines
-│   ├── models/             # Data models, schemas, ORM
-│   ├── utils/              # Shared utilities and helpers
-│   └── config/             # Configuration management
+├── api/                    # FastAPI Server
+│   ├── main.py             # REST Endpoints (Upload/Download)
+│   ├── websocket.py        # Real-time connection management
+│   └── websocket_stream.py # Kafka-to-WebSocket bridge
 │
-├── scripts/                # Utility & automation scripts
-├── tests/                  # Test suite (pytest)
-├── docs/                   # Project documentation
-├── docker/                 # Dockerfiles & compose configs
-├── notebooks/              # Jupyter notebooks for exploration
+├── app/                    # Vision Operations
+│   ├── core/               # Tracker and Kinematics Engine
+│   └── pipelines/          # Cropping and Vector routing
 │
-├── data/
-│   ├── videos/             # Input video files
-│   ├── crops/              # Extracted object crops
-│   └── outputs/            # Processing outputs
+├── backend/                # Heavy AI & Data Pipelines
+│   ├── agent/              # LangGraph Supervisor & Executor
+│   ├── reid/               # FastReID identity management
+│   ├── search/             # NLP routing and translation
+│   ├── storage/            # Redis & Qdrant adapters
+│   └── streaming/          # Kafka Event pipelines & Feature Engines (SigLIP)
 │
-├── .env.example            # Environment variable template
-├── pyproject.toml          # Project metadata & dependencies
-├── README.md               # This file
-└── .gitignore              # Git ignore rules
+├── docker/                 # Infra Configurations (Zookeeper, Kafka, Redis, Qdrant)
+├── scripts/                # CLI Utilities and Benchmarking Tools
+└── tests/                  # Massive Pytest Suite covering the entire architecture
 ```
 
 ---
 
-## 🚀 Quick Start
+## 🚀 Quick Start Guide
 
 ### Prerequisites
+* **Python 3.11+** with `uv` package manager.
+* **Node.js v18+** with `npm`.
+* **Docker Desktop** (for Kafka, Redis, and Qdrant).
 
-- **Python** 3.11+
-- **uv** package manager ([install guide](https://docs.astral.sh/uv/getting-started/installation/))
-- **Docker** (for Qdrant)
-- **Git**
-
-### Installation
+### 1. Boot Infrastructure
 
 ```bash
-# Clone the repository
 git clone https://github.com/mzayan-bit/VisionTraceAI.git
 cd VisionTraceAI
 
-# Create virtual environment and install dependencies
+# Spin up Zookeeper, Kafka, Redis, and Qdrant
+docker compose up -d
+```
+
+### 2. Configure & Start Backend
+
+```bash
+# Setup virtual environment
 uv venv --python 3.11
 source .venv/bin/activate
 uv sync
 
-# Copy environment configuration
+# Configure environment variables
 cp .env.example .env
-# Edit .env with your settings
 ```
-
-### Development Setup
+> **CRITICAL**: If you are on an Apple Silicon Mac, edit your `.env` file and set `DEVICE=mps` to enable Metal Performance Shaders. For NVIDIA GPUs, use `DEVICE=cuda`. This provides a massive 10x-20x speedup for video processing!
 
 ```bash
-# Install with dev dependencies
-uv sync --extra dev
+# Start the background Kafka streaming pipeline
+uv run python -c "from backend.streaming.kafka_consumer import StreamingPipeline; pipeline = StreamingPipeline(); pipeline.start()" &
 
-# Run tests
+# Start the FastAPI web server
+uv run uvicorn api.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+### 3. Start Frontend Dashboard
+
+Open a fresh terminal window:
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+Visit `http://localhost:5173` in your browser.
+
+---
+
+## 🎬 How to Process a Video
+
+1. Open the **Live Monitoring** screen in the Dashboard.
+2. Click **Upload Video** and select your `.mp4` file.
+3. The video is sent to the FastAPI server, which saves it to `data/videos/` and spawns a background tracking process.
+4. *Note: On your very first upload, the system will automatically download the `yolo11m-pose.pt` weights (~40MB). This may take 30-40 seconds.*
+5. The tracker analyzes the video, calculates kinematics, and generates SigLIP embeddings for global search.
+6. Once processing completes, navigate to the **Playback Center** to seamlessly view the resulting H.264 video with all overlay metrics natively in your browser!
+
+---
+
+## 🧪 Testing & Validation
+
+VisionTraceAI includes a comprehensive `pytest` suite ensuring rock-solid stability across ML pipelines, storage adapters, and streaming brokers.
+
+```bash
+# Run the entire test suite
 pytest
 
-# Run linter
-ruff check .
-
-# Run type checker
-mypy app/
+# Test the LangGraph agent specifically
+pytest tests/test_langgraph_workflow.py -v
 ```
-
----
-
-## 🐳 Docker
-
-```bash
-# Build and run with Docker Compose
-docker compose -f docker/docker-compose.yml up --build
-```
-
----
-
-## 🗄️ Qdrant Vector Database
-
-VisionTraceAI uses [Qdrant](https://qdrant.tech/) as the semantic memory backend for storing and searching embedding vectors.
-
-### Setup
-
-```bash
-# 1. Start the Qdrant container
-docker compose -f docker/docker-compose.qdrant.yml up -d
-
-# 2. Initialize the default collection
-uv run python scripts/init_qdrant.py
-
-# 3. Verify with health check
-uv run python scripts/check_qdrant.py
-```
-
-### Expected Output — Initialization
-
-```
-  🔍 VisionTraceAI — Qdrant Initialization
-  ════════════════════════════════════════
-  [1/4] Connecting to Qdrant...
-        ✅  Connected successfully
-  [2/4] Creating collection...
-        ✅  Collection 'visiontrace_embeddings' created
-  [3/4] Verifying collection...
-        ✅  Collection 'visiontrace_embeddings' verified
-  [4/4] Collection diagnostics:
-        Name         : visiontrace_embeddings
-        Status       : green
-        Vector Size  : 768
-        Vectors Count: 0
-```
-
-### Expected Output — Health Check
-
-```
-  🔍 VisionTraceAI — Qdrant Health Check
-  ════════════════════════════════════════
-  [1/3] Testing connection...
-        ✅  Connected to localhost:6333
-  [2/3] Running health check...
-        Status           : healthy
-        Collections Count: 1
-  [3/3] Listing collections:
-        1. visiontrace_embeddings
-           Status : green
-           Vectors: 0
-           Dim    : 768
-```
-
-### Configuration
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `QDRANT_HOST` | `localhost` | Qdrant server hostname |
-| `QDRANT_PORT` | `6333` | Qdrant HTTP API port |
-| `QDRANT_COLLECTION_NAME` | `visiontrace_embeddings` | Default collection name |
-
-### Collection Details
-
-| Property | Value |
-|----------|-------|
-| Collection Name | `visiontrace_embeddings` |
-| Vector Size | 768 (SigLIP embeddings) |
-| Distance Metric | Cosine |
-| Persistent Storage | Docker volume `qdrant_data` |
-
----
-
-## ✂️ Crop Extraction Pipeline
-
-Prepares tracked individuals for downstream feature extraction (e.g., SigLIP embeddings). The cropper validates bounding boxes, rejects blurred images using a Laplacian variance threshold, and resizes crops to 224x224 RGB.
-
-### Running Crop Extraction
-
-```bash
-uv run python scripts/extract_crops.py data/videos/sample.mp4 --camera-id cam_1 --blur-threshold 50.0
-```
-
-### Output Structure
-
-Crops and metadata are saved hierarchically:
-```
-data/crops/
-└── cam_1/
-    └── track_1/
-        ├── crop_metadata.json
-        ├── track_1_frame_00001.jpg
-        └── track_1_frame_00002.jpg
-```
-
----
-
-## 🧠 SigLIP Embedding Engine
-
-The semantic engine uses **Google's SigLIP** (`google/siglip-base-patch16-224`) to generate 768-dimensional semantic embeddings for both images (crops) and text queries.
-
-### Benchmarking
-
-You can benchmark latency and model load times with the provided script:
-
-```bash
-uv run python scripts/test_siglip.py
-```
-
----
-
-## 🔎 Semantic Search Pipeline
-
-The system connects the Tracker, Cropper, SigLIP, and Qdrant into an automated Semantic Memory Pipeline.
-
-### Indexing a Video
-
-To automatically track, crop, embed, and store all individuals in a video to the Qdrant database:
-
-```bash
-uv run python scripts/index_video.py data/videos/sample.mp4 --camera-id cam_1
-```
-
-### Searching (Example)
-
-You can retrieve tracks matching semantic descriptions:
-
-```python
-results = pipeline.search_by_text("person wearing a blue hoodie", limit=5)
-for res in results:
-    print(f"Match: Track {res.track_id} from Camera {res.camera_id} (Score: {res.score:.3f})")
-```
-
----
-
-## 🏆 Week 1 MVP — Natural Language Search
-
-Stage 9 delivers the fully operational Week 1 MVP: **Video → Tracking → Cropping → Embedding → Qdrant → Natural Language Search**.
-
-### System Architecture
-
-```
-┌──────────────────────────────────────────────────────────────────────────┐
-│                        VisionTraceAI — Week 1 MVP                        │
-│                                                                          │
-│   ┌────────────┐    ┌────────────┐    ┌────────────┐    ┌────────────┐   │
-│   │  📹 Video  │───▸│ 🎯 YOLO11  │───▸│ ✂️ Cropper │───▸│ 🧠 SigLIP  │   │
-│   │   Input    │    │ ByteTrack  │    │  224×224   │    │  768-dim   │   │
-│   └────────────┘    └────────────┘    └────────────┘    └─────┬──────┘   │
-│                                                               │          │
-│                                                               ▼          │
-│   ┌────────────┐    ┌────────────────────────┐    ┌──────────────────┐   │
-│   │ 💬 Text    │───▸│  VisionSearchEngine     │◂──│   🗄️ Qdrant     │   │
-│   │   Query    │    │  search() / search_top_k│   │   Cosine Index   │   │
-│   └────────────┘    └────────────────────────┘    └──────────────────┘   │
-│                              │                                           │
-│                              ▼                                           │
-│                     ┌────────────────┐                                   │
-│                     │ 📋 Ranked      │                                   │
-│                     │ SearchResults  │                                   │
-│                     └────────────────┘                                   │
-└──────────────────────────────────────────────────────────────────────────┘
-```
-
-### Interactive Search Console
-
-Launch the REPL-style search demo:
-
-```bash
-uv run python scripts/search_demo.py
-```
-
-#### Available Commands
-
-| Command | Description |
-|---------|-------------|
-| `<text>` | Free-form semantic search |
-| `/track <id>` | Lookup all crops for a track ID |
-| `/camera <id>` | Lookup all crops for a camera |
-| `/top <k> <query>` | Return exactly k results |
-| `/save` | Export last results to JSON |
-| `/quit` | Exit |
-
-#### Sample Session
-
-```
-╔══════════════════════════════════════════════════════════════╗
-║               🔍 VisionTraceAI Search Console               ║
-╚══════════════════════════════════════════════════════════════╝
-
-  Enter query> person wearing black backpack
-
-  📋 Results for: "person wearing black backpack"
-
-  #    Track      Camera       Timestamp    Similarity   Crop Path
-  ──── ────────── ──────────── ──────────── ──────────── ──────────────────
-  1    17         cam_1        12.50s       0.8912       data/crops/cam_1/track_17/...
-  2    42         cam_1        18.33s       0.8437       data/crops/cam_1/track_42/...
-
-  Total: 2 match(es)
-```
-
-#### Batch Mode
-
-Run queries non-interactively:
-
-```bash
-uv run python scripts/search_demo.py --batch "person wearing backpack" "person in white shirt" "person walking"
-```
-
-### Programmatic API
-
-```python
-from app.services.search_engine import VisionSearchEngine
-
-engine = VisionSearchEngine()
-engine.initialize()
-
-# Semantic search
-results = engine.search("person wearing a blue hoodie", limit=5)
-
-# Person search (auto-augmented prompt)
-results = engine.search_person("tall man with sunglasses")
-
-# Filter by track
-results = engine.search_by_track(track_id=17)
-
-# Filter by camera
-results = engine.search_by_camera(camera_id="cam_1")
-
-# Save results
-engine.save_results(results, query="blue hoodie", output_path="results.json")
-
-engine.shutdown()
-```
-
----
-
-## 🧪 Testing
-
-```bash
-# Run all tests
-pytest
-
-# Run with coverage
-pytest --cov=app --cov-report=html
-
-# Run specific test module
-pytest tests/test_search_engine.py -v
-```
-
----
-
-## ⚡ Benchmarks & Evaluation
-
-```bash
-# Run end-to-end pipeline benchmarks
-uv run python scripts/benchmark_pipeline.py
-
-# Run search quality evaluation
-uv run python scripts/evaluate_search.py
-
-# Generate the Week 1 final report
-uv run python scripts/generate_week1_report.py
-```
-
-Results are saved to `data/outputs/benchmark_results.json` and `data/outputs/search_evaluation.json`. The final report is generated at `docs/WEEK1_FINAL_REPORT.md`.
-
----
-
-## 🎬 MVP Demo
-
-Launch the interactive Week 1 demo:
-
-```bash
-uv run python scripts/demo_week1.py
-```
-
-```
-╔══════════════════════════════════════════════════════════════╗
-║           🔍 VisionTraceAI — Week 1 MVP Demo                ║
-╠══════════════════════════════════════════════════════════════╣
-║   1  Process Video        (Track + Crop + Embed + Store)     ║
-║   2  Search Person        (Natural language query)           ║
-║   3  Search Track         (By track ID)                      ║
-║   4  Search Camera        (By camera ID)                     ║
-║   5  Run Benchmarks       (Pipeline performance)             ║
-║   6  Generate Report      (Week 1 final report)              ║
-║   7  Exit                                                    ║
-╚══════════════════════════════════════════════════════════════╝
-```
-
----
-
-## 📖 Documentation
-
-Documentation is located in the `docs/` directory. To build and serve locally:
-
-```bash
-uv sync --extra docs
-mkdocs serve
-```
-
----
-
-## 🗺️ Roadmap
-
-| Stage | Description                     | Status         |
-|-------|---------------------------------|----------------|
-| 1     | Project Bootstrap               | ✅ Complete     |
-| 2     | Configuration System            | ✅ Complete     |
-| 3     | Enterprise Logging              | ✅ Complete     |
-| 4     | Qdrant Infrastructure           | ✅ Complete     |
-| 5     | Detection & Tracking Pipelines  | ✅ Complete     |
-| 6     | Crop Extraction Pipeline        | ✅ Complete     |
-| 7     | SigLIP Embedding Engine         | ✅ Complete     |
-| 8     | Semantic Memory Pipeline        | ✅ Complete     |
-| 9     | Week 1 MVP — Search Engine      | ✅ Complete     |
-| 10    | Production MVP Polish           | ✅ Complete     |
 
 ---
 

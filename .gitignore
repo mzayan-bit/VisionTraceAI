@@ -93,3 +93,11 @@ coverage.xml
 *.bak
 *.tmp
 *.temp
+
+# ---------- Node / Frontend ----------
+node_modules/
+.npm/
+
+# ---------- Scratch / Test files ----------
+test*.mp4
+test*.py

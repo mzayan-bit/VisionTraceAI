@@ -27,8 +27,10 @@ export default function LiveMonitoring({
       });
       const data = await response.json();
       console.log('Upload success:', data);
+      alert('Video uploaded successfully! The VisionTrace engine is now processing it in the background.');
     } catch (error) {
       console.error('Upload failed:', error);
+      alert('Failed to upload video. Please ensure the backend is running.');
     } finally {
       setIsUploading(false);
       if (fileInputRef.current) {
